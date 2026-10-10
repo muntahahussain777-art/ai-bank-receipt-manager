@@ -567,7 +567,7 @@ void main() {
       expect(live.single.sourceKind, 'android_share');
 
       // --- Migration / schema smoke ---
-      expect(DbSchema.version, 6);
+      expect(DbSchema.version, 7);
       final db = await harness.database.database;
       final tables = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table'",

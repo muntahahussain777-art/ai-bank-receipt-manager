@@ -243,7 +243,7 @@ void main() {
       drafts: [harness.draft(transactionId: 'MIG-P3', amount: 11)],
     );
     final db = await harness.database.database;
-    expect(DbSchema.version, 6);
+    expect(DbSchema.version, 7);
     final info = await db.rawQuery(
       'PRAGMA table_info(${DbSchema.officeAccountAliases})',
     );

@@ -111,8 +111,8 @@ const appDestinations = <AppDestination>[
     group: DestinationGroup.directory,
   ),
   AppDestination(
-    label: 'Groq settings',
-    title: 'Groq AI settings',
+    label: 'AI Processing',
+    title: 'AI Processing Settings',
     path: '/groq',
     icon: Icons.auto_awesome_outlined,
     selectedIcon: Icons.auto_awesome,

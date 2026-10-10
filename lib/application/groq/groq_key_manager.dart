@@ -27,18 +27,30 @@ class GroqKeyManager {
     String? modelHint,
     bool setPreferred = false,
     bool enabled = true,
+    AiProviderKind providerKind = AiProviderKind.groq,
+    int? timeoutSeconds,
+    int? maxCompletionTokens,
   }) async {
     final trimmed = apiKey.trim();
     if (trimmed.isEmpty) {
       throw ArgumentError('API key must not be empty.');
     }
+    final defaultEndpoint = providerKind == AiProviderKind.gemini
+        ? 'https://generativelanguage.googleapis.com/v1beta'
+        : GroqConstants.defaultEndpoint;
+    final defaultModel = providerKind == AiProviderKind.gemini
+        ? 'gemini-2.0-flash'
+        : GroqConstants.defaultVisionModel;
     final record = await _configs.create(
-      label: label.trim().isEmpty ? 'Groq key' : label.trim(),
-      endpoint: (endpoint ?? GroqConstants.defaultEndpoint).trim(),
-      modelHint: modelHint ?? GroqConstants.defaultVisionModel,
+      label: label.trim().isEmpty ? providerKind.displayLabel : label.trim(),
+      endpoint: (endpoint ?? defaultEndpoint).trim(),
+      modelHint: modelHint ?? defaultModel,
       maskedKeyHint: maskApiKey(trimmed),
       isActive: setPreferred,
       isEnabled: enabled,
+      providerKind: providerKind,
+      timeoutSeconds: timeoutSeconds,
+      maxCompletionTokens: maxCompletionTokens,
     );
     await _keys.write(record.secureKeySlot!, trimmed);
     return record;

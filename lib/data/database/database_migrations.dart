@@ -15,6 +15,7 @@ abstract final class DatabaseMigrations {
       await _migrateToV4(txn);
       await _migrateToV5(txn);
       await _migrateToV6(txn);
+      await _migrateToV7(txn);
     });
   }
 
@@ -39,6 +40,9 @@ abstract final class DatabaseMigrations {
       }
       if (oldVersion < 6) {
         await _migrateToV6(txn);
+      }
+      if (oldVersion < 7) {
+        await _migrateToV7(txn);
       }
     });
   }
@@ -688,6 +692,44 @@ CREATE TABLE IF NOT EXISTS ${DbSchema.reconciliationCases} (
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_recon_cases_opened '
       'ON ${DbSchema.reconciliationCases}(opened_at)',
+    );
+  }
+
+  /// Multi-provider AI configs + persisted test results (additive only).
+  static Future<void> _migrateToV7(DatabaseExecutor db) async {
+    await _addColumnIfMissing(
+      db,
+      DbSchema.groqConfigs,
+      'provider_kind',
+      "TEXT NOT NULL DEFAULT 'groq'",
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.groqConfigs,
+      'last_test_result',
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.groqConfigs,
+      'last_test_detail',
+      'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.groqConfigs,
+      'timeout_seconds',
+      'INTEGER',
+    );
+    await _addColumnIfMissing(
+      db,
+      DbSchema.groqConfigs,
+      'max_completion_tokens',
+      'INTEGER',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_groq_configs_provider '
+      'ON ${DbSchema.groqConfigs}(provider_kind)',
     );
   }
 

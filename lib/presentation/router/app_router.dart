@@ -6,7 +6,7 @@ import 'package:ai_bank_receipt_manager/presentation/screens/daily_entries_scree
 import 'package:ai_bank_receipt_manager/presentation/screens/dashboard_screen.dart';
 import 'package:ai_bank_receipt_manager/presentation/screens/dealers_screen.dart';
 import 'package:ai_bank_receipt_manager/presentation/screens/entered_entries_screen.dart';
-import 'package:ai_bank_receipt_manager/presentation/screens/groq_settings_screen.dart';
+import 'package:ai_bank_receipt_manager/presentation/screens/ai_processing_settings_screen.dart';
 import 'package:ai_bank_receipt_manager/presentation/screens/import_receipts_screen.dart';
 import 'package:ai_bank_receipt_manager/presentation/screens/pending_entries_screen.dart';
 import 'package:ai_bank_receipt_manager/presentation/screens/receipt_details_screen.dart';
@@ -80,7 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/groq',
-            builder: (context, state) => const GroqSettingsScreen(),
+            builder: (context, state) => const AiProcessingSettingsScreen(),
           ),
           GoRoute(
             path: '/reports',

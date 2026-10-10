@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:ai_bank_receipt_manager/application/ai/receipt_processing_coordinator.dart';
 import 'package:ai_bank_receipt_manager/application/groq/receipt_vision_service.dart';
 import 'package:ai_bank_receipt_manager/application/import/receipt_ingestion.dart';
 import 'package:ai_bank_receipt_manager/data/groq/groq_errors.dart';
@@ -24,17 +25,20 @@ class BatchImportService {
     required ReceiptRepository receipts,
     required ReceiptVisionService vision,
     required String imagesDirectoryPath,
+    ReceiptProcessingCoordinator? coordinator,
     Uuid? uuid,
     this.maxConcurrent = kMaxConcurrentVisionJobs,
   }) : _queue = queue,
        _receipts = receipts,
        _vision = vision,
+       _coordinator = coordinator,
        _imagesDirectoryPath = imagesDirectoryPath,
        _uuid = uuid ?? const Uuid();
 
   final ImportQueueRepository _queue;
   final ReceiptRepository _receipts;
   final ReceiptVisionService _vision;
+  final ReceiptProcessingCoordinator? _coordinator;
   final String _imagesDirectoryPath;
   final Uuid _uuid;
   final int maxConcurrent;
@@ -229,11 +233,17 @@ class BatchImportService {
 
     if (!isPdf) {
       try {
-        visionResult = await _vision.processAuthorizedImage(
-          sourceFile: file,
-          userAuthorizedUpload: userAuthorizedUpload,
-          mimeType: working.mimeType,
-        );
+        visionResult = _coordinator != null
+            ? await _coordinator.processAuthorizedImage(
+                sourceFile: file,
+                userAuthorizedUpload: userAuthorizedUpload,
+                mimeType: working.mimeType,
+              )
+            : await _vision.processAuthorizedImage(
+                sourceFile: file,
+                userAuthorizedUpload: userAuthorizedUpload,
+                mimeType: working.mimeType,
+              );
         // Prefer the durable path already stored for the queue item.
         if (visionResult.imagePath != working.storedPath) {
           // Keep both; queue item retains its preserved path.

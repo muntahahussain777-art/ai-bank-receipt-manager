@@ -411,6 +411,27 @@ class AppSettingRecord {
   final DateTime updatedAt;
 }
 
+/// Cloud provider kind stored on API configuration rows.
+enum AiProviderKind { groq, gemini, custom }
+
+extension AiProviderKindCodec on AiProviderKind {
+  String get storageValue => name;
+
+  String get displayLabel => switch (this) {
+    AiProviderKind.groq => 'Groq AI',
+    AiProviderKind.gemini => 'Gemini AI',
+    AiProviderKind.custom => 'Custom AI',
+  };
+
+  static AiProviderKind parse(String? value) {
+    return switch (value) {
+      'gemini' => AiProviderKind.gemini,
+      'custom' => AiProviderKind.custom,
+      _ => AiProviderKind.groq,
+    };
+  }
+}
+
 class GroqApiConfigurationRecord {
   const GroqApiConfigurationRecord({
     required this.id,
@@ -424,6 +445,11 @@ class GroqApiConfigurationRecord {
     this.lastErrorStatus,
     this.lastErrorAt,
     this.lastTestedAt,
+    this.providerKind = AiProviderKind.groq,
+    this.lastTestResult,
+    this.lastTestDetail,
+    this.timeoutSeconds,
+    this.maxCompletionTokens,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -448,6 +474,11 @@ class GroqApiConfigurationRecord {
   final String? lastErrorStatus;
   final DateTime? lastErrorAt;
   final DateTime? lastTestedAt;
+  final AiProviderKind providerKind;
+  final String? lastTestResult;
+  final String? lastTestDetail;
+  final int? timeoutSeconds;
+  final int? maxCompletionTokens;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -464,6 +495,11 @@ class GroqApiConfigurationRecord {
     String? lastErrorStatus,
     DateTime? lastErrorAt,
     DateTime? lastTestedAt,
+    AiProviderKind? providerKind,
+    String? lastTestResult,
+    String? lastTestDetail,
+    int? timeoutSeconds,
+    int? maxCompletionTokens,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -483,6 +519,11 @@ class GroqApiConfigurationRecord {
           : (lastErrorStatus ?? this.lastErrorStatus),
       lastErrorAt: clearLastError ? null : (lastErrorAt ?? this.lastErrorAt),
       lastTestedAt: lastTestedAt ?? this.lastTestedAt,
+      providerKind: providerKind ?? this.providerKind,
+      lastTestResult: lastTestResult ?? this.lastTestResult,
+      lastTestDetail: lastTestDetail ?? this.lastTestDetail,
+      timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
+      maxCompletionTokens: maxCompletionTokens ?? this.maxCompletionTokens,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,

@@ -262,6 +262,11 @@ abstract final class GroqConfigMapper {
     'last_tested_at': record.lastTestedAt == null
         ? null
         : encodeDateTime(record.lastTestedAt!),
+    'provider_kind': record.providerKind.storageValue,
+    'last_test_result': record.lastTestResult,
+    'last_test_detail': record.lastTestDetail,
+    'timeout_seconds': record.timeoutSeconds,
+    'max_completion_tokens': record.maxCompletionTokens,
     'created_at': encodeDateTime(record.createdAt),
     'updated_at': encodeDateTime(record.updatedAt),
     'deleted_at': record.deletedAt == null
@@ -282,6 +287,11 @@ abstract final class GroqConfigMapper {
       lastErrorStatus: map['last_error_status'] as String?,
       lastErrorAt: decodeDateTimeOrNull(map['last_error_at'] as String?),
       lastTestedAt: decodeDateTimeOrNull(map['last_tested_at'] as String?),
+      providerKind: AiProviderKindCodec.parse(map['provider_kind'] as String?),
+      lastTestResult: map['last_test_result'] as String?,
+      lastTestDetail: map['last_test_detail'] as String?,
+      timeoutSeconds: (map['timeout_seconds'] as num?)?.toInt(),
+      maxCompletionTokens: (map['max_completion_tokens'] as num?)?.toInt(),
       createdAt: decodeDateTime(map['created_at']! as String),
       updatedAt: decodeDateTime(map['updated_at']! as String),
       deletedAt: decodeDateTimeOrNull(map['deleted_at'] as String?),

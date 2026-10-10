@@ -47,6 +47,7 @@ class AppDatabase {
     if (!directory.existsSync()) {
       directory.createSync(recursive: true);
     }
+    await _backupBeforeUpgradeIfNeeded();
 
     Future<Database> openWithFactory() {
       final factory = _factory ?? databaseFactory;
@@ -76,6 +77,39 @@ class AppDatabase {
     }
 
     return openWithFactory();
+  }
+
+  /// Copies the live DB once before an additive schema upgrade.
+  Future<void> _backupBeforeUpgradeIfNeeded() async {
+    final file = File(databaseFilePath);
+    if (!file.existsSync()) {
+      return;
+    }
+    try {
+      final factory = _factory ?? databaseFactory;
+      final probe = await factory.openDatabase(
+        databaseFilePath,
+        options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+      );
+      final row = await probe.rawQuery('PRAGMA user_version');
+      await probe.close();
+      final current = (row.first['user_version'] as num?)?.toInt() ?? 0;
+      if (current >= DbSchema.version) {
+        return;
+      }
+      final stamp = DateTime.now()
+          .toUtc()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .replaceAll('.', '-');
+      final backupPath = p.join(
+        p.dirname(databaseFilePath),
+        'pre_migrate_v${DbSchema.version}_$stamp.db',
+      );
+      await file.copy(backupPath);
+    } catch (_) {
+      // Opening must continue; backup is best-effort safety.
+    }
   }
 
   Future<void> close() async {

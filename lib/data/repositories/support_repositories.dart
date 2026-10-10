@@ -88,6 +88,26 @@ class GroqApiConfigurationRepository {
     ];
   }
 
+  Future<List<GroqApiConfigurationRecord>> listByProvider(
+    AiProviderKind kind,
+  ) async {
+    final all = await listActive();
+    return [
+      for (final c in all)
+        if (c.providerKind == kind) c,
+    ];
+  }
+
+  Future<List<GroqApiConfigurationRecord>> listEnabledForProvider(
+    AiProviderKind kind,
+  ) async {
+    final all = await listEnabledForFallback();
+    return [
+      for (final c in all)
+        if (c.providerKind == kind) c,
+    ];
+  }
+
   Future<GroqApiConfigurationRecord> create({
     required String label,
     required String endpoint,
@@ -96,18 +116,29 @@ class GroqApiConfigurationRepository {
     String? maskedKeyHint,
     bool isActive = false,
     bool isEnabled = true,
+    AiProviderKind providerKind = AiProviderKind.groq,
+    int? timeoutSeconds,
+    int? maxCompletionTokens,
   }) async {
     final now = DateTime.now().toUtc();
     final id = _uuid.v4();
+    final prefix = switch (providerKind) {
+      AiProviderKind.groq => 'groq_key_',
+      AiProviderKind.gemini => 'gemini_key_',
+      AiProviderKind.custom => 'custom_key_',
+    };
     final record = GroqApiConfigurationRecord(
       id: id,
       label: label,
       endpoint: endpoint,
       modelHint: modelHint,
-      secureKeySlot: secureKeySlot ?? 'groq_key_$id',
+      secureKeySlot: secureKeySlot ?? '$prefix$id',
       maskedKeyHint: maskedKeyHint,
       isActive: isActive,
       isEnabled: isEnabled,
+      providerKind: providerKind,
+      timeoutSeconds: timeoutSeconds,
+      maxCompletionTokens: maxCompletionTokens,
       createdAt: now,
       updatedAt: now,
     );
@@ -176,16 +207,36 @@ class GroqApiConfigurationRepository {
   }
 
   Future<GroqApiConfigurationRecord> recordTestSuccess(String id) async {
+    return recordTestOutcome(
+      id: id,
+      result: 'working',
+      detail: 'Connection test succeeded.',
+      clearError: true,
+    );
+  }
+
+  Future<GroqApiConfigurationRecord> recordTestOutcome({
+    required String id,
+    required String result,
+    String? detail,
+    bool clearError = false,
+  }) async {
     final existing = await getById(id);
     if (existing == null) {
-      throw StateError('Groq config $id was not found.');
+      throw StateError('API configuration $id was not found.');
     }
     final now = DateTime.now().toUtc();
     return update(
       existing.copyWith(
         lastTestedAt: now,
+        lastTestResult: result,
+        lastTestDetail: detail,
+        lastErrorStatus: clearError
+            ? null
+            : (result == 'working' ? null : result),
+        lastErrorAt: clearError || result == 'working' ? null : now,
         updatedAt: now,
-        clearLastError: true,
+        clearLastError: clearError || result == 'working',
       ),
     );
   }

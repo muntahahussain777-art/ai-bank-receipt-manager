@@ -38,7 +38,7 @@ void main() {
   }
 
   test('schema v6 desk columns exist', () async {
-    expect(DbSchema.version, 6);
+    expect(DbSchema.version, 7);
     final db = await harness.database.database;
     final info = await db.rawQuery('PRAGMA table_info(${DbSchema.receipts})');
     final names = info.map((r) => r['name']).toSet();
@@ -232,7 +232,7 @@ void main() {
       await receipts.countByAccountingDate(DateTime(2026, 10, 10)),
       before,
     );
-    expect(DbSchema.version, 6);
+    expect(DbSchema.version, 7);
   });
 
   test('move accounting date for late historical assignment', () async {

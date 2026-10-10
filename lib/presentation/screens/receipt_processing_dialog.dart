@@ -298,6 +298,14 @@ class _ReceiptProcessingDialogState
                           ),
                         ),
                       const SizedBox(height: 12),
+                      if (widget.initial.modelNotes != null &&
+                          widget.initial.modelNotes!.trim().isNotEmpty) ...[
+                        Text(
+                          'Processing: ${widget.initial.modelNotes}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Text(
                         'Bank identities',
                         style: theme.textTheme.titleSmall,
