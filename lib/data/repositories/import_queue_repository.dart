@@ -97,7 +97,10 @@ class ImportQueueRepository {
       updatedAt: now,
     );
     final db = await _db.database;
-    await db.insert(DbSchema.importQueueItems, ImportQueueItemMapper.toMap(record));
+    await db.insert(
+      DbSchema.importQueueItems,
+      ImportQueueItemMapper.toMap(record),
+    );
     return record;
   }
 

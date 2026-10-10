@@ -158,7 +158,8 @@ class _MonthGrid extends StatelessWidget {
             selected,
             DateTime(month.year, month.month, day),
           ),
-          count: counts[DateTime(month.year, month.month, day)] ??
+          count:
+              counts[DateTime(month.year, month.month, day)] ??
               counts[DateTime.utc(month.year, month.month, day)] ??
               0,
           onSelect: onSelect,

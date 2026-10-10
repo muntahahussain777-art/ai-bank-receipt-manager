@@ -45,10 +45,7 @@ class GroqVisionClient {
       },
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw GroqFailure.fromHttpStatus(
-        response.statusCode,
-        response.body,
-      );
+      throw GroqFailure.fromHttpStatus(response.statusCode, response.body);
     }
   }
 
@@ -70,8 +67,7 @@ class GroqVisionClient {
     final uri = Uri.parse(
       '${_trimSlash(endpoint)}${GroqConstants.chatCompletionsPath}',
     );
-    final dataUrl =
-        'data:$mimeType;base64,${base64Encode(imageBytes)}';
+    final dataUrl = 'data:$mimeType;base64,${base64Encode(imageBytes)}';
 
     final response = await _send(
       uri: uri,
@@ -79,10 +75,7 @@ class GroqVisionClient {
       body: {
         'model': model,
         'messages': [
-          {
-            'role': 'system',
-            'content': GroqConstants.extractionSystemPrompt,
-          },
+          {'role': 'system', 'content': GroqConstants.extractionSystemPrompt},
           {
             'role': 'user',
             'content': [
@@ -148,7 +141,7 @@ class GroqVisionClient {
         retryableWithNextKey: true,
         configId: configId,
       );
-    }     on http.ClientException catch (error) {
+    } on http.ClientException catch (error) {
       throw GroqFailure(
         kind: GroqFailureKind.network,
         message: sanitizeProviderMessage(error.message),

@@ -1,3 +1,4 @@
+import 'package:ai_bank_receipt_manager/core/formatting/account_mask.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/domain/entities/receipt.dart';
@@ -83,8 +84,14 @@ class ReceiptCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _Fact(label: 'Sender', value: receipt.bankSenderName ?? '—'),
-          _Fact(label: 'Receiver', value: receipt.bankReceiverName ?? '—'),
+          _Fact(
+            label: 'Sender',
+            value: maskAccountNumber(receipt.bankSenderName ?? '—'),
+          ),
+          _Fact(
+            label: 'Receiver',
+            value: maskAccountNumber(receipt.bankReceiverName ?? '—'),
+          ),
           _Fact(label: receipt.partyKind.label, value: receipt.partyName),
           _Fact(label: 'Office account', value: receipt.officeDisplayLabel),
           _Fact(

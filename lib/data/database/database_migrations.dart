@@ -614,12 +614,7 @@ WHERE file_count = 0 AND receipt_count > 0
       'winforms_reference',
       'TEXT',
     );
-    await _addColumnIfMissing(
-      db,
-      DbSchema.receipts,
-      'prior_amount',
-      'REAL',
-    );
+    await _addColumnIfMissing(db, DbSchema.receipts, 'prior_amount', 'REAL');
     await _addColumnIfMissing(
       db,
       DbSchema.receipts,

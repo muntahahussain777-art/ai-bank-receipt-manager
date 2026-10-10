@@ -114,7 +114,10 @@ class ReceiptRepository {
 
     await db.transaction((txn) async {
       if (existingBatchId == null) {
-        await txn.insert(DbSchema.importBatches, ImportBatchMapper.toMap(batch));
+        await txn.insert(
+          DbSchema.importBatches,
+          ImportBatchMapper.toMap(batch),
+        );
       } else {
         await txn.update(
           DbSchema.importBatches,
@@ -315,7 +318,9 @@ class ReceiptRepository {
       throw StateError('Cannot edit a soft-deleted receipt.');
     }
     if (existing.entryStatus != DbEntryStatus.entered) {
-      throw StateError('Financial correction case requires an Entered receipt.');
+      throw StateError(
+        'Financial correction case requires an Entered receipt.',
+      );
     }
 
     final now = DateTime.now().toUtc();
@@ -462,7 +467,8 @@ class ReceiptRepository {
             newValue: encodeDateTime(now),
             changedAt: now,
             changedBy: completedBy,
-            reason: 'Reconciliation completed after manual WinForms correction.',
+            reason:
+                'Reconciliation completed after manual WinForms correction.',
           ),
         ),
       );
@@ -495,8 +501,7 @@ class ReceiptRepository {
       status: ReconciliationCaseStatus.open,
       kind: ReconciliationCaseKind.reopen,
       reason:
-          reason ??
-          'Reconciliation reopened. WinForms may still need review.',
+          reason ?? 'Reconciliation reopened. WinForms may still need review.',
       diffs: const [],
       previousAmount: existing.priorAmount ?? existing.amount,
       correctedAmount: existing.amount,
@@ -551,7 +556,8 @@ class ReceiptRepository {
       throw StateError('Reconciliation case $caseId was not found.');
     }
     final existing = ReconciliationCaseMapper.fromMap(rows.first);
-    final merged = existing.correctionNotes == null ||
+    final merged =
+        existing.correctionNotes == null ||
             existing.correctionNotes!.trim().isEmpty
         ? notes
         : '${existing.correctionNotes}\n$notes';
@@ -903,8 +909,8 @@ GROUP BY accounting_date
     );
     return {
       for (final row in rows)
-        decodeDateOnly(row['accounting_date']! as String):
-            (row['c'] as num).toInt(),
+        decodeDateOnly(row['accounting_date']! as String): (row['c'] as num)
+            .toInt(),
     };
   }
 
@@ -1004,7 +1010,8 @@ GROUP BY accounting_date
             newValue: null,
             changedAt: now,
             changedBy: changedBy,
-            reason: reason ??
+            reason:
+                reason ??
                 (existing.entryStatus == DbEntryStatus.entered
                     ? 'Restored Entered receipt; reconciliation still required.'
                     : 'Restored from soft delete'),
@@ -1187,11 +1194,7 @@ GROUP BY accounting_date
       existing.mappedAccountId,
       updated.mappedAccountId,
     );
-    track(
-      'transaction_id',
-      existing.transactionId,
-      updated.transactionId,
-    );
+    track('transaction_id', existing.transactionId, updated.transactionId);
     track(
       'accounting_date',
       encodeDateOnly(existing.accountingDate),

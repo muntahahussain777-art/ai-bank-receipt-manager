@@ -1,8 +1,6 @@
 # Implementation phases
 
-Phase 1 is the only phase implemented. Do not start a later phase until it is requested.
-
-The office rules in this file stay in force for every phase.
+Phases 1–10 are implemented. The office rules in this file stay in force for every phase.
 
 ## Business requirements
 
@@ -143,12 +141,14 @@ Still remaining after Phase 3:
 - Leave API keys in secure storage rather than in the backup file.
 - Backup and restore must work offline.
 
-## Phase 10 — Audit and data-loss prevention
+## Phase 10 — Production readiness verification
 
-- Record who changed a financial field, when, and the old and new values.
-- Keep the audit history across backup and restore.
-- Block silent overwrite, silent status changes, and deletes that are not explicit.
-- Verify that an interrupted write does not leave a partial receipt as the only copy.
+Status: implemented (automated verification with mocked Groq; no live authorized Groq API test in CI).
+
+- End-to-end path: share import → mocked Vision → classification → desk ticks → restart → append → late/historical → duplicates → reconciliation → audit → delete/restore → PDF/XLSX → backup/restore → offline/API error/key replace → themes
+- Full suite: unit, repository, migration, widget, import, export, reconciliation, backup, and Phase 10 integration tests
+- Release APK build via `flutter build apk --release --split-per-abi` (debug signing until a production keystore is authorized)
+- Audit history preserved across backup/restore; no silent overwrite of Entered ticks or SQLite reset on upgrade
 
 ## Suggested order
 

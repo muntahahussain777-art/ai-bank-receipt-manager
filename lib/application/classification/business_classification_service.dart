@@ -134,7 +134,9 @@ class BusinessClassificationService {
       );
       if (!receiverOffice.first.exact) {
         needsReview = true;
-        reasons.add('Receiver match is similar, not exact; confirm before linking.');
+        reasons.add(
+          'Receiver match is similar, not exact; confirm before linking.',
+        );
       }
     } else if (senderOffice.length == 1 && receiverOffice.isEmpty) {
       officeId = senderOffice.first.entityId;
@@ -145,7 +147,9 @@ class BusinessClassificationService {
       );
       if (!senderOffice.first.exact) {
         needsReview = true;
-        reasons.add('Sender match is similar, not exact; confirm before linking.');
+        reasons.add(
+          'Sender match is similar, not exact; confirm before linking.',
+        );
       }
     } else if (receiverOffice.length > 1 || senderOffice.length > 1) {
       needsReview = true;

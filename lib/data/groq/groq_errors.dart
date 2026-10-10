@@ -106,10 +106,7 @@ String sanitizeProviderMessage(String raw) {
     text = '${text.substring(0, 280)}…';
   }
   return text
-      .replaceAll(
-        RegExp(r'gsk_[A-Za-z0-9_\-]+'),
-        'gsk_***',
-      )
+      .replaceAll(RegExp(r'gsk_[A-Za-z0-9_\-]+'), 'gsk_***')
       .replaceAll(
         RegExp(r'Bearer\s+[A-Za-z0-9_\-\.]+', caseSensitive: false),
         'Bearer ***',

@@ -1,6 +1,8 @@
 import 'package:ai_bank_receipt_manager/app.dart';
 import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+import 'package:ai_bank_receipt_manager/application/providers/backup_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
+import 'package:ai_bank_receipt_manager/application/security/app_lock_service.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_account_models.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_enums.dart';
@@ -80,6 +82,7 @@ Future<void> _pumpApp(WidgetTester tester, Size size) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        appLockServiceProvider.overrideWith((ref) => _UnlockedAppLock()),
         officeAccountsProvider.overrideWith((ref) async => _testAccounts),
         selectableOfficeAccountsProvider.overrideWith(
           (ref) async => _testAccounts,
@@ -98,8 +101,7 @@ Future<void> _pumpApp(WidgetTester tester, Size size) async {
               else if (filter.statusFilter == EntryStatus.entered &&
                   receipt.status == EntryStatus.entered)
                 receipt
-              else if (filter.statusFilter ==
-                      EntryStatus.needsReconciliation &&
+              else if (filter.statusFilter == EntryStatus.needsReconciliation &&
                   receipt.status == EntryStatus.needsReconciliation)
                 receipt,
           ];
@@ -132,4 +134,12 @@ Future<void> _pumpApp(WidgetTester tester, Size size) async {
     ),
   );
   await tester.pumpAndSettle();
+}
+
+class _UnlockedAppLock extends AppLockService {
+  @override
+  Future<bool> isEnabled() async => false;
+
+  @override
+  Future<bool> biometricEnabled() async => false;
 }

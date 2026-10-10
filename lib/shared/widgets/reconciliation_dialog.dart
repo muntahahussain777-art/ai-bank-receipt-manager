@@ -11,10 +11,8 @@ Future<bool> showReconciliationDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => ReconciliationDialog(
-      preview: preview,
-      confirmLabel: confirmLabel,
-    ),
+    builder: (context) =>
+        ReconciliationDialog(preview: preview, confirmLabel: confirmLabel),
   );
   return result ?? false;
 }

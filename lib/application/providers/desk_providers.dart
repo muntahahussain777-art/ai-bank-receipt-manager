@@ -82,18 +82,14 @@ class DeskListFilterController extends Notifier<DeskListFilterState> {
     clearAccount: value == null,
   );
 
-  void setCustomer(String? value) => state = state.copyWith(
-    customerId: value,
-    clearCustomer: value == null,
-  );
+  void setCustomer(String? value) =>
+      state = state.copyWith(customerId: value, clearCustomer: value == null);
 
   void setDealer(String? value) =>
       state = state.copyWith(dealerId: value, clearDealer: value == null);
 
-  void setStatus(EntryStatus? value) => state = state.copyWith(
-    statusFilter: value,
-    clearStatus: value == null,
-  );
+  void setStatus(EntryStatus? value) =>
+      state = state.copyWith(statusFilter: value, clearStatus: value == null);
 
   void setSearch(String value) => state = state.copyWith(searchText: value);
 
@@ -111,12 +107,13 @@ final deskListFilterProvider =
       DeskListFilterController.new,
     );
 
-final dailyDeskSummaryProvider =
-    FutureProvider.autoDispose<DailyDeskSummary>((ref) async {
-      final repo = await ref.watch(receiptRepositoryProvider.future);
-      final date = ref.watch(selectedAccountingDateProvider);
-      return repo.summarizeAccountingDate(date);
-    });
+final dailyDeskSummaryProvider = FutureProvider.autoDispose<DailyDeskSummary>((
+  ref,
+) async {
+  final repo = await ref.watch(receiptRepositoryProvider.future);
+  final date = ref.watch(selectedAccountingDateProvider);
+  return repo.summarizeAccountingDate(date);
+});
 
 final storedReceiptsForSelectedDateProvider =
     FutureProvider.autoDispose<List<Receipt>>((ref) async {
@@ -210,8 +207,8 @@ final storedReceiptsForSelectedDateProvider =
       return mapped;
     });
 
-final storedReceiptByIdProvider =
-    FutureProvider.autoDispose.family<Receipt?, String>((ref, id) async {
+final storedReceiptByIdProvider = FutureProvider.autoDispose
+    .family<Receipt?, String>((ref, id) async {
       final repo = await ref.watch(receiptRepositoryProvider.future);
       final record = await repo.getById(id);
       if (record == null) {

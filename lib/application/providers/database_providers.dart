@@ -81,7 +81,9 @@ final secureKeyStoreProvider = Provider<SecureKeyStore>((ref) {
 });
 
 final groqKeyManagerProvider = FutureProvider<GroqKeyManager>((ref) async {
-  final configs = await ref.watch(groqApiConfigurationRepositoryProvider.future);
+  final configs = await ref.watch(
+    groqApiConfigurationRepositoryProvider.future,
+  );
   return GroqKeyManager(
     configs: configs,
     keyStore: ref.watch(secureKeyStoreProvider),
@@ -93,7 +95,9 @@ final receiptVisionServiceProvider = FutureProvider<ReceiptVisionService>((
 ) async {
   final paths = await ref.watch(appStoragePathsProvider.future);
   final keyManager = await ref.watch(groqKeyManagerProvider.future);
-  final configs = await ref.watch(groqApiConfigurationRepositoryProvider.future);
+  final configs = await ref.watch(
+    groqApiConfigurationRepositoryProvider.future,
+  );
   final extractions = await ref.watch(aiExtractionRepositoryProvider.future);
   final receipts = await ref.watch(receiptRepositoryProvider.future);
   return ReceiptVisionService(
@@ -132,8 +136,7 @@ final androidShareIngestionProvider = Provider<ReceiptIngestionSource>((ref) {
   return AndroidShareIngestionSource();
 });
 
-final recentImportBatchesProvider =
-    FutureProvider.autoDispose((ref) async {
-      final queue = await ref.watch(importQueueRepositoryProvider.future);
-      return queue.listRecentBatches();
-    });
+final recentImportBatchesProvider = FutureProvider.autoDispose((ref) async {
+  final queue = await ref.watch(importQueueRepositoryProvider.future);
+  return queue.listRecentBatches();
+});

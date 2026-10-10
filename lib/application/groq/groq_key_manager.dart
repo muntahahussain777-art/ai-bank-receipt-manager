@@ -137,7 +137,9 @@ class GroqKeyManager {
     }
   }
 
-  Future<ResolvedGroqKey?> resolveSecret(GroqApiConfigurationRecord config) async {
+  Future<ResolvedGroqKey?> resolveSecret(
+    GroqApiConfigurationRecord config,
+  ) async {
     final slot = config.secureKeySlot;
     if (slot == null) {
       return null;

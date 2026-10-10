@@ -254,7 +254,10 @@ void main() {
     expect(done.enteredAt, isNotNull);
 
     final cases = await entry.listCasesForReceipt(entered.id);
-    expect(cases.every((c) => c.status == ReconciliationCaseStatus.completed), isTrue);
+    expect(
+      cases.every((c) => c.status == ReconciliationCaseStatus.completed),
+      isTrue,
+    );
     expect(cases.first.correctionNotes, 'Corrected in WinForms');
   });
 
@@ -298,15 +301,9 @@ void main() {
     expect(deleted.entryStatus, DbEntryStatus.entered);
 
     final cases = await entry.listCasesForReceipt(entered.id);
-    expect(
-      cases.any((c) => c.kind == ReconciliationCaseKind.deletion),
-      isTrue,
-    );
+    expect(cases.any((c) => c.kind == ReconciliationCaseKind.deletion), isTrue);
 
-    final restored = await receipts.restore(
-      id: entered.id,
-      changedBy: 'clerk',
-    );
+    final restored = await receipts.restore(id: entered.id, changedBy: 'clerk');
     expect(restored.deletedAt, isNull);
     expect(restored.reviewStatus, DbReviewStatus.needsReconciliation);
     expect(restored.entryStatus, DbEntryStatus.entered);

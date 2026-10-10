@@ -10,7 +10,8 @@ class AndroidShareIngestionSource implements ReceiptIngestionSource {
   AndroidShareIngestionSource({
     MethodChannel? channel,
     EventChannel? eventChannel,
-  }) : _channel = channel ?? const MethodChannel('ai_bank_receipt_manager/share'),
+  }) : _channel =
+           channel ?? const MethodChannel('ai_bank_receipt_manager/share'),
        _events =
            eventChannel ??
            const EventChannel('ai_bank_receipt_manager/share_events');
@@ -39,7 +40,9 @@ class AndroidShareIngestionSource implements ReceiptIngestionSource {
   @override
   Future<List<IngestedFile>> getInitialFiles() async {
     try {
-      final raw = await _channel.invokeMethod<List<dynamic>>('getInitialShared');
+      final raw = await _channel.invokeMethod<List<dynamic>>(
+        'getInitialShared',
+      );
       return _mapFiles(raw);
     } on MissingPluginException {
       return const [];

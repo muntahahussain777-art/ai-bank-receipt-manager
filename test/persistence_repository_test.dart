@@ -303,10 +303,7 @@ void main() {
     expect(rows.single.transactionId, 'MIG-1');
 
     final accounts = await OfficeAccountRepository(harness.database).list();
-    expect(
-      accounts.map((a) => a.displayName),
-      containsAll(['Mutalib', 'AD']),
-    );
+    expect(accounts.map((a) => a.displayName), containsAll(['Mutalib', 'AD']));
   });
 
   test(

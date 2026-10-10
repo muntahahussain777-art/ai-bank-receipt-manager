@@ -5,6 +5,7 @@ import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dar
 import 'package:ai_bank_receipt_manager/application/reconciliation/build_reconciliation_preview.dart';
 import 'package:ai_bank_receipt_manager/application/reconciliation/financial_change_detector.dart';
 import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
+import 'package:ai_bank_receipt_manager/core/formatting/account_mask.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/core/theme/app_theme.dart';
@@ -121,16 +122,19 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(formatPkr(receipt.amount), style: theme.textTheme.headlineSmall),
+                  Text(
+                    formatPkr(receipt.amount),
+                    style: theme.textTheme.headlineSmall,
+                  ),
                   const SizedBox(height: 12),
                   DefinitionBlock(label: 'Bank', value: receipt.bankName),
                   DefinitionBlock(
                     label: 'Sender',
-                    value: receipt.bankSenderName ?? '—',
+                    value: maskAccountNumber(receipt.bankSenderName ?? '—'),
                   ),
                   DefinitionBlock(
                     label: 'Receiver',
-                    value: receipt.bankReceiverName ?? '—',
+                    value: maskAccountNumber(receipt.bankReceiverName ?? '—'),
                   ),
                   DefinitionBlock(
                     label: receipt.partyKind.label,
@@ -173,9 +177,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                 children: [
                   Text('Admin note', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  Text(
-                    receipt.adminNote.isEmpty ? '—' : receipt.adminNote,
-                  ),
+                  Text(receipt.adminNote.isEmpty ? '—' : receipt.adminNote),
                 ],
               ),
             ),
@@ -262,7 +264,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
           Text(
             receipt.entryStatusEntered
                 ? 'This row is Entered. Saving financial changes keeps the tick '
-                    'and opens reconciliation.'
+                      'and opens reconciliation.'
                 : 'Changes are saved to SQLite. WinForms is never modified.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -283,7 +285,9 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
           const SizedBox(height: 12),
           TextField(
             controller: _reference,
-            decoration: const InputDecoration(labelText: 'Transaction reference'),
+            decoration: const InputDecoration(
+              labelText: 'Transaction reference',
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -334,8 +338,9 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
     }
     setState(() => _amountError = null);
 
-    final newParty =
-        _party.text.trim().isEmpty ? receipt.partyName : _party.text.trim();
+    final newParty = _party.text.trim().isEmpty
+        ? receipt.partyName
+        : _party.text.trim();
     final newRef = _reference.text.trim().isEmpty
         ? null
         : _reference.text.trim();

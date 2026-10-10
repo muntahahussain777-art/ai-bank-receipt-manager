@@ -26,19 +26,18 @@ abstract final class ReceiptDeskMapper {
     String? officeAccountLabel,
     OfficeAccountRecord? officeAccount,
   }) {
-    final kind = partyKind ??
-        (record.dealerId != null
-            ? PartyKind.dealer
-            : PartyKind.customer);
-    final name = partyName ??
+    final kind =
+        partyKind ??
+        (record.dealerId != null ? PartyKind.dealer : PartyKind.customer);
+    final name =
+        partyName ??
         ((record.adminMessage?.trim().isNotEmpty == true)
             ? record.adminMessage!.trim()
             : (record.bankSenderName ??
                   record.bankReceiverName ??
                   'Unassigned'));
-    final label = officeAccountLabel ??
-        officeAccount?.displayName ??
-        'Unassigned office';
+    final label =
+        officeAccountLabel ?? officeAccount?.displayName ?? 'Unassigned office';
     final previewOffice = _previewOffice(officeAccount);
 
     return Receipt(
@@ -50,8 +49,7 @@ abstract final class ReceiptDeskMapper {
       officeAccount: previewOffice,
       officeAccountLabel: label,
       accountingDate: record.accountingDate,
-      transactionDate:
-          record.transactionDateTime ?? record.accountingDate,
+      transactionDate: record.transactionDateTime ?? record.accountingDate,
       reference: record.transactionId ?? '(no reference)',
       status: composeStatus(record),
       bankDirection: record.receiptType == DbReceiptType.sent

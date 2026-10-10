@@ -490,13 +490,7 @@ class GroqApiConfigurationRecord {
   }
 }
 
-enum AiProcessingStatus {
-  pending,
-  succeeded,
-  failed,
-  needsReview,
-  proposed,
-}
+enum AiProcessingStatus { pending, succeeded, failed, needsReview, proposed }
 
 extension AiProcessingStatusCodec on AiProcessingStatus {
   String get storageValue => switch (this) {

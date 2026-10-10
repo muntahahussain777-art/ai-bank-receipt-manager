@@ -259,10 +259,7 @@ class BatchImportService {
       ),
     );
 
-    final draft = _draftFromVision(
-      visionResult: visionResult,
-      item: working,
-    );
+    final draft = _draftFromVision(visionResult: visionResult, item: working);
     final duplicates = await _receipts.findPossibleDuplicates(
       draft,
       accountingDate: (await _queue.getBatch(working.batchId))!.accountingDate,
@@ -349,16 +346,18 @@ class BatchImportService {
     }
 
     if (outcome.duplicateDecision == DuplicateDecision.skip) {
-      return _queue.updateItem(
-        _copyItem(
-          item,
-          status: ImportQueueStatus.skippedDuplicate,
-          duplicateOf: outcome.duplicateOfReceiptId,
-        ),
-      ).then((value) async {
-        await _queue.refreshBatchCounts(item.batchId);
-        return value;
-      });
+      return _queue
+          .updateItem(
+            _copyItem(
+              item,
+              status: ImportQueueStatus.skippedDuplicate,
+              duplicateOf: outcome.duplicateOfReceiptId,
+            ),
+          )
+          .then((value) async {
+            await _queue.refreshBatchCounts(item.batchId);
+            return value;
+          });
     }
 
     final corrected = outcome.extraction;
@@ -371,7 +370,8 @@ class BatchImportService {
       transactionReference: corrected.transactionReference,
       transactionDateTimeRaw: corrected.transactionDateTimeRaw,
       whatsappSender: corrected.whatsappSender,
-      adminMessage: outcome.adminMessage ??
+      adminMessage:
+          outcome.adminMessage ??
           item.adminNoteOverride ??
           corrected.adminMessage,
       maskedAccountNumbers: corrected.maskedAccountNumbers,
@@ -548,9 +548,7 @@ class BatchImportService {
     await target.writeAsBytes(bytes, flush: true);
     final mime =
         meta.mimeType ??
-        (meta.isPdf
-            ? 'application/pdf'
-            : _guessMime(target.path));
+        (meta.isPdf ? 'application/pdf' : _guessMime(target.path));
     return (path: target.path, hash: hash, mimeType: mime);
   }
 

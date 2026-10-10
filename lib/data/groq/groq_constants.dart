@@ -7,9 +7,7 @@ abstract final class GroqConstants {
   static const maxFallbackAttempts = 3;
   static const requestTimeout = Duration(seconds: 60);
 
-  static const supportedModelChoices = <String>[
-    'qwen/qwen3.8-27b',
-  ];
+  static const supportedModelChoices = <String>['qwen/qwen3.8-27b'];
 
   static const extractionSystemPrompt =
       'You extract structured data from Pakistani bank receipts and WhatsApp '

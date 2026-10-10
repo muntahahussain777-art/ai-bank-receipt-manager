@@ -77,7 +77,8 @@ class ReconciliationScreen extends ConsumerWidget {
         const SizedBox(height: 20),
         SectionHeader(
           title: 'Affected receipts',
-          subtitle: 'Open the receipt to view the original image and mark complete.',
+          subtitle:
+              'Open the receipt to view the original image and mark complete.',
         ),
         const SizedBox(height: 12),
         receiptsAsync.when(
@@ -100,13 +101,11 @@ class ReconciliationScreen extends ConsumerWidget {
                     spacing: 8,
                     children: [
                       OutlinedButton(
-                        onPressed: () =>
-                            context.go('/receipts/${receipt.id}'),
+                        onPressed: () => context.go('/receipts/${receipt.id}'),
                         child: const Text('View differences'),
                       ),
                       OutlinedButton(
-                        onPressed: () =>
-                            context.go('/receipts/${receipt.id}'),
+                        onPressed: () => context.go('/receipts/${receipt.id}'),
                         child: const Text('View original receipt'),
                       ),
                       FilledButton.tonal(
@@ -261,10 +260,7 @@ class _CaseCard extends ConsumerWidget {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Add correction notes'),
-                    content: TextField(
-                      controller: controller,
-                      maxLines: 3,
-                    ),
+                    content: TextField(controller: controller, maxLines: 3),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -280,8 +276,9 @@ class _CaseCard extends ConsumerWidget {
                 if (ok != true || controller.text.trim().isEmpty) {
                   return;
                 }
-                final service =
-                    await ref.read(receiptEntryServiceProvider.future);
+                final service = await ref.read(
+                  receiptEntryServiceProvider.future,
+                );
                 await service.addCorrectionNotes(
                   caseId: caseRecord.id,
                   notes: controller.text.trim(),

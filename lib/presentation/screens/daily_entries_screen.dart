@@ -101,8 +101,7 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
             ),
             FilterChip(
               label: const Text('Reconciliation'),
-              selected:
-                  filter.statusFilter == EntryStatus.needsReconciliation,
+              selected: filter.statusFilter == EntryStatus.needsReconciliation,
               onSelected: (_) => ref
                   .read(deskListFilterProvider.notifier)
                   .setStatus(EntryStatus.needsReconciliation),
@@ -190,11 +189,7 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
         if (ok != true) {
           return;
         }
-        await service.undoEntered(
-          id: id,
-          confirmed: true,
-          changedBy: 'desk',
-        );
+        await service.undoEntered(id: id, confirmed: true, changedBy: 'desk');
       }
       invalidateDeskProviders(ref);
       ref.invalidate(storedReceiptByIdProvider(id));
@@ -211,10 +206,7 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
   Future<void> _bulkMarkEntered() async {
     final service = await ref.read(receiptEntryServiceProvider.future);
     try {
-      await service.markEnteredBulk(
-        ids: _selected.toList(),
-        enteredBy: 'desk',
-      );
+      await service.markEnteredBulk(ids: _selected.toList(), enteredBy: 'desk');
       setState(() => _selected.clear());
       invalidateDeskProviders(ref);
     } catch (error) {

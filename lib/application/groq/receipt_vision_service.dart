@@ -186,7 +186,8 @@ class ReceiptVisionService {
             'AI reprocess proposed changes for review (extraction ${result.extractionRecord.id}).',
           ),
         ),
-        reason: 'AI reprocess proposed review only; financial fields unchanged.',
+        reason:
+            'AI reprocess proposed review only; financial fields unchanged.',
       );
     }
     return result;
@@ -354,9 +355,7 @@ class ReceiptVisionService {
     final ext = p.extension(source.path).isEmpty
         ? '.jpg'
         : p.extension(source.path);
-    final target = File(
-      p.join(_imagesDirectoryPath, '${_uuid.v4()}$ext'),
-    );
+    final target = File(p.join(_imagesDirectoryPath, '${_uuid.v4()}$ext'));
     await target.writeAsBytes(bytes, flush: true);
     return target.path;
   }

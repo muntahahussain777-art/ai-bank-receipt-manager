@@ -28,7 +28,9 @@ final previewGroqConfigsProvider = Provider<List<GroqConfigPreview>>((ref) {
 
 final storedGroqConfigsProvider =
     FutureProvider.autoDispose<List<GroqApiConfigurationRecord>>((ref) async {
-      final repo = await ref.watch(groqApiConfigurationRepositoryProvider.future);
+      final repo = await ref.watch(
+        groqApiConfigurationRepositoryProvider.future,
+      );
       return repo.listActive();
     });
 

@@ -113,11 +113,7 @@ void main() {
     return BatchItemReviewOutcome(
       extraction:
           vision?.extraction ??
-          const ReceiptExtraction(
-            bankName: 'HBL',
-            amount: 1,
-            currency: 'PKR',
-          ),
+          const ReceiptExtraction(bankName: 'HBL', amount: 1, currency: 'PKR'),
       adminMessage: item.adminNoteOverride ?? vision?.extraction?.adminMessage,
     );
   }
@@ -136,9 +132,7 @@ void main() {
     final batch = await batchService.enqueueFiles(
       accountingDate: DateTime(2026, 10, 10),
       source: 'gallery',
-      files: [
-        IngestedFile(path: image.path, sourceKind: 'gallery'),
-      ],
+      files: [IngestedFile(path: image.path, sourceKind: 'gallery')],
     );
     expect(batch.fileCount, 1);
     await batchService.processQueued(
@@ -270,59 +264,62 @@ void main() {
     expect(row.importedAt.isAfter(row.accountingDate), isTrue);
   });
 
-  test('7 network failure during batch preserves image and allows retry', () async {
-    final failingClient = GroqVisionClient(
-      httpClient: MockClient((request) async {
-        throw const SocketException('Failed host lookup');
-      }),
-    );
-    final configs = GroqApiConfigurationRepository(harness.database);
-    final keys = GroqKeyManager(
-      configs: configs,
-      keyStore: store,
-      client: failingClient,
-    );
-    final vision = ReceiptVisionService(
-      keyManager: keys,
-      configs: configs,
-      extractions: AiExtractionRepository(harness.database),
-      receipts: receipts,
-      imagesDirectoryPath: harness.paths.imagesDirectoryPath,
-      client: failingClient,
-    );
-    final failingBatch = BatchImportService(
-      queue: queue,
-      receipts: receipts,
-      vision: vision,
-      imagesDirectoryPath: harness.paths.imagesDirectoryPath,
-    );
+  test(
+    '7 network failure during batch preserves image and allows retry',
+    () async {
+      final failingClient = GroqVisionClient(
+        httpClient: MockClient((request) async {
+          throw const SocketException('Failed host lookup');
+        }),
+      );
+      final configs = GroqApiConfigurationRepository(harness.database);
+      final keys = GroqKeyManager(
+        configs: configs,
+        keyStore: store,
+        client: failingClient,
+      );
+      final vision = ReceiptVisionService(
+        keyManager: keys,
+        configs: configs,
+        extractions: AiExtractionRepository(harness.database),
+        receipts: receipts,
+        imagesDirectoryPath: harness.paths.imagesDirectoryPath,
+        client: failingClient,
+      );
+      final failingBatch = BatchImportService(
+        queue: queue,
+        receipts: receipts,
+        vision: vision,
+        imagesDirectoryPath: harness.paths.imagesDirectoryPath,
+      );
 
-    final image = await makeImage('net.jpg');
-    final batch = await failingBatch.enqueueFiles(
-      accountingDate: DateTime(2026, 10, 10),
-      source: 'gallery',
-      files: [IngestedFile(path: image.path, sourceKind: 'gallery')],
-    );
-    await failingBatch.processQueued(
-      batchId: batch.id,
-      onNeedsReview: (item, visionResult, duplicates) async {
-        // Vision failed but file exists — manual save path.
-        expect(File(item.storedPath).existsSync(), isTrue);
-        return BatchItemReviewOutcome(
-          extraction: const ReceiptExtraction(
-            bankName: 'UBL',
-            amount: 100,
-            currency: 'PKR',
-            transactionReference: 'MANUAL-NET',
-          ),
-        );
-      },
-    );
-    final item = (await queue.listForBatch(batch.id)).single;
-    expect(File(item.storedPath).existsSync(), isTrue);
-    expect(item.queueStatus, ImportQueueStatus.succeeded);
-    expect(await receipts.countByAccountingDate(DateTime(2026, 10, 10)), 1);
-  });
+      final image = await makeImage('net.jpg');
+      final batch = await failingBatch.enqueueFiles(
+        accountingDate: DateTime(2026, 10, 10),
+        source: 'gallery',
+        files: [IngestedFile(path: image.path, sourceKind: 'gallery')],
+      );
+      await failingBatch.processQueued(
+        batchId: batch.id,
+        onNeedsReview: (item, visionResult, duplicates) async {
+          // Vision failed but file exists — manual save path.
+          expect(File(item.storedPath).existsSync(), isTrue);
+          return BatchItemReviewOutcome(
+            extraction: const ReceiptExtraction(
+              bankName: 'UBL',
+              amount: 100,
+              currency: 'PKR',
+              transactionReference: 'MANUAL-NET',
+            ),
+          );
+        },
+      );
+      final item = (await queue.listForBatch(batch.id)).single;
+      expect(File(item.storedPath).existsSync(), isTrue);
+      expect(item.queueStatus, ImportQueueStatus.succeeded);
+      expect(await receipts.countByAccountingDate(DateTime(2026, 10, 10)), 1);
+    },
+  );
 
   test('8 app restart mid-queue resumes failed/queued items', () async {
     final image = await makeImage('resume.jpg');
@@ -456,7 +453,10 @@ void main() {
     );
     expect(await receipts.countByAccountingDate(DateTime(2026, 10, 10)), 1);
     final items = await queue.listForBatch(batch.id);
-    expect(items.every((i) => i.queueStatus == ImportQueueStatus.succeeded), isTrue);
+    expect(
+      items.every((i) => i.queueStatus == ImportQueueStatus.succeeded),
+      isTrue,
+    );
   });
 
   test('ingestion extension interface documents empty source', () async {

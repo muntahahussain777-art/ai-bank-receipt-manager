@@ -43,7 +43,8 @@ class GroqSettingsScreen extends ConsumerWidget {
           data: (configs) {
             if (configs.isEmpty) {
               return const EmptyState(
-                message: 'No Groq keys yet. Add an enabled key to process receipts.',
+                message:
+                    'No Groq keys yet. Add an enabled key to process receipts.',
               );
             }
             return Column(
@@ -104,7 +105,8 @@ class GroqSettingsScreen extends ConsumerWidget {
                   controller: keyController,
                   decoration: const InputDecoration(
                     labelText: 'API key',
-                    helperText: 'Stored in secure storage; never shown fully again.',
+                    helperText:
+                        'Stored in secure storage; never shown fully again.',
                   ),
                   obscureText: true,
                 ),
@@ -114,9 +116,12 @@ class GroqSettingsScreen extends ConsumerWidget {
                   builder: (context, value, _) {
                     return DropdownButtonFormField<String>(
                       initialValue: value,
-                      decoration: const InputDecoration(labelText: 'Vision model'),
+                      decoration: const InputDecoration(
+                        labelText: 'Vision model',
+                      ),
                       items: [
-                        for (final choice in GroqConstants.supportedModelChoices)
+                        for (final choice
+                            in GroqConstants.supportedModelChoices)
                           DropdownMenuItem(value: choice, child: Text(choice)),
                       ],
                       onChanged: (next) {
@@ -286,9 +291,9 @@ class GroqSettingsScreen extends ConsumerWidget {
     } on GroqFailure catch (failure) {
       ref.invalidate(storedGroqConfigsProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failure.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
       }
     } catch (error) {
       if (context.mounted) {
@@ -376,7 +381,9 @@ class _KeyCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text('Key: ${config.maskedKeyHint ?? '(none)'}'),
           const SizedBox(height: 4),
-          Text('Model: ${config.modelHint ?? GroqConstants.defaultVisionModel}'),
+          Text(
+            'Model: ${config.modelHint ?? GroqConstants.defaultVisionModel}',
+          ),
           const SizedBox(height: 4),
           Text('Endpoint: ${config.endpoint}'),
           if (config.lastErrorStatus != null) ...[
@@ -411,10 +418,7 @@ class _KeyCard extends StatelessWidget {
                 child: const Text('Prefer'),
               ),
               OutlinedButton(onPressed: onModel, child: const Text('Model')),
-              TextButton(
-                onPressed: onDelete,
-                child: const Text('Delete'),
-              ),
+              TextButton(onPressed: onDelete, child: const Text('Delete')),
             ],
           ),
         ],

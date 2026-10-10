@@ -128,9 +128,7 @@ abstract final class ReceiptExtractionValidator {
     final map = Map<String, Object?>.from(decoded);
 
     final amount = _readAmount(map['amount']);
-    if (map.containsKey('amount') &&
-        map['amount'] != null &&
-        amount == null) {
+    if (map.containsKey('amount') && map['amount'] != null && amount == null) {
       return ExtractionParseResult.schemaInvalid(
         'amount must be a non-negative number or null.',
         trimmed,

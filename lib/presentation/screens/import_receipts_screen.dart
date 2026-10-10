@@ -204,17 +204,14 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
     if (x == null) {
       return;
     }
-    await _runBatch(
-      [
-        IngestedFile(
-          path: x.path,
-          sourceKind: 'camera',
-          mimeType: x.mimeType,
-          displayName: x.name,
-        ),
-      ],
-      sourceLabel: 'camera',
-    );
+    await _runBatch([
+      IngestedFile(
+        path: x.path,
+        sourceKind: 'camera',
+        mimeType: x.mimeType,
+        displayName: x.name,
+      ),
+    ], sourceLabel: 'camera');
   }
 
   Future<void> _pickPdf() async {
@@ -347,15 +344,12 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
     VisionJobResult? vision,
     List<DuplicateMatch> duplicates,
   ) async {
-    final initial = vision?.extraction ??
+    final initial =
+        vision?.extraction ??
         ReceiptExtraction(
           adminMessage: item.adminNoteOverride,
           currency: 'PKR',
-          missingFields: const [
-            'bankName',
-            'amount',
-            'transactionReference',
-          ],
+          missingFields: const ['bankName', 'amount', 'transactionReference'],
         );
 
     DuplicateDecision decision = DuplicateDecision.keepSeparate;
@@ -471,7 +465,9 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
     return result;
   }
 
-  Future<Map<String, String>?> _optionalGrouping(List<IngestedFile> files) async {
+  Future<Map<String, String>?> _optionalGrouping(
+    List<IngestedFile> files,
+  ) async {
     if (files.length < 2) {
       return null;
     }
@@ -582,10 +578,7 @@ class _DuplicateDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.pop(
             context,
-            _DuplicateChoice(
-              DuplicateDecision.skip,
-              matches.first.existing.id,
-            ),
+            _DuplicateChoice(DuplicateDecision.skip, matches.first.existing.id),
           ),
           child: const Text('Skip duplicate'),
         ),

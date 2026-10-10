@@ -141,9 +141,7 @@ abstract final class ReconciliationCaseMapper {
     'kind': record.kind.storageValue,
     'reason': record.reason,
     'correction_notes': record.correctionNotes,
-    'diffs_json': jsonEncode([
-      for (final diff in record.diffs) diff.toJson(),
-    ]),
+    'diffs_json': jsonEncode([for (final diff in record.diffs) diff.toJson()]),
     'previous_amount': record.previousAmount,
     'corrected_amount': record.correctedAmount,
     'opened_at': encodeDateTime(record.openedAt),
@@ -166,9 +164,7 @@ abstract final class ReconciliationCaseMapper {
       correctionNotes: map['correction_notes'] as String?,
       diffs: [
         for (final item in raw)
-          FinancialFieldDiff.fromJson(
-            Map<String, Object?>.from(item as Map),
-          ),
+          FinancialFieldDiff.fromJson(Map<String, Object?>.from(item as Map)),
       ],
       previousAmount: (map['previous_amount'] as num?)?.toDouble(),
       correctedAmount: (map['corrected_amount'] as num?)?.toDouble(),

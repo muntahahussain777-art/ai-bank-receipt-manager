@@ -1,5 +1,6 @@
 import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
+import 'package:ai_bank_receipt_manager/core/formatting/account_mask.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_account_models.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_enums.dart';
@@ -320,7 +321,9 @@ class _OfficeAccountCard extends ConsumerWidget {
                 );
               }
               return Text(
-                aliases.map((alias) => alias.aliasName).join(' · '),
+                aliases
+                    .map((alias) => maskAccountNumber(alias.aliasName))
+                    .join(' · '),
                 style: theme.textTheme.bodyLarge,
               );
             },

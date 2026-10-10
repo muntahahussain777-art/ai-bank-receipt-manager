@@ -19,7 +19,9 @@ class PendingEntriesScreen extends ConsumerWidget {
     final filter = ref.watch(deskListFilterProvider);
     if (filter.statusFilter != EntryStatus.pending) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(deskListFilterProvider.notifier).setStatus(EntryStatus.pending);
+        ref
+            .read(deskListFilterProvider.notifier)
+            .setStatus(EntryStatus.pending);
       });
     }
 

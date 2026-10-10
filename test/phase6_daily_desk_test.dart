@@ -55,7 +55,9 @@ void main() {
       await entry.markEntered(id: morning[i].id, enteredBy: 'clerk');
     }
 
-    var summary = await receipts.summarizeAccountingDate(DateTime(2026, 10, 10));
+    var summary = await receipts.summarizeAccountingDate(
+      DateTime(2026, 10, 10),
+    );
     expect(summary.totalCount, 20);
     expect(summary.enteredCount, 12);
     expect(summary.pendingCount, 8);
@@ -67,10 +69,7 @@ void main() {
     expect(summary.pendingCount, 13);
 
     final all = await receipts.listByAccountingDate(DateTime(2026, 10, 10));
-    expect(
-      all.where((r) => r.entryStatus == DbEntryStatus.entered).length,
-      12,
-    );
+    expect(all.where((r) => r.entryStatus == DbEntryStatus.entered).length, 12);
     final stillEntered = await receipts.listFiltered(
       ReceiptListFilter(
         accountingDate: DateTime(2026, 10, 10),
@@ -154,40 +153,39 @@ void main() {
       ],
     );
     final matches = await receipts.findPossibleDuplicates(
-      harness.draft(
-        transactionId: 'DUP-1',
-        amount: 99,
-        imageHash: 'same-hash',
-      ),
+      harness.draft(transactionId: 'DUP-1', amount: 99, imageHash: 'same-hash'),
       accountingDate: DateTime(2026, 10, 10),
     );
     expect(matches, isNotEmpty);
     expect(await receipts.countByAccountingDate(DateTime(2026, 10, 10)), 1);
   });
 
-  test('previously entered financial edit keeps tick and needs reconciliation', () async {
-    await importCount(1, prefix: 'EDIT');
-    final row = (await receipts.listByAccountingDate(
-      DateTime(2026, 10, 10),
-    )).single;
-    await entry.markEntered(id: row.id, enteredBy: 'clerk');
-    final updated = await entry.applyFinancialEdit(
-      id: row.id,
-      newAmount: 9999,
-      changedBy: 'clerk',
-      userConfirmedReconciliation: true,
-    );
-    expect(updated.entryStatus, DbEntryStatus.entered);
-    expect(updated.enteredAt, isNotNull);
-    expect(updated.reviewStatus, DbReviewStatus.needsReconciliation);
-    expect(updated.priorAmount, row.amount);
-    expect(updated.amount, 9999);
+  test(
+    'previously entered financial edit keeps tick and needs reconciliation',
+    () async {
+      await importCount(1, prefix: 'EDIT');
+      final row = (await receipts.listByAccountingDate(
+        DateTime(2026, 10, 10),
+      )).single;
+      await entry.markEntered(id: row.id, enteredBy: 'clerk');
+      final updated = await entry.applyFinancialEdit(
+        id: row.id,
+        newAmount: 9999,
+        changedBy: 'clerk',
+        userConfirmedReconciliation: true,
+      );
+      expect(updated.entryStatus, DbEntryStatus.entered);
+      expect(updated.enteredAt, isNotNull);
+      expect(updated.reviewStatus, DbReviewStatus.needsReconciliation);
+      expect(updated.priorAmount, row.amount);
+      expect(updated.amount, 9999);
 
-    expect(
-      () => entry.markEntered(id: row.id, enteredBy: 'clerk'),
-      throwsStateError,
-    );
-  });
+      expect(
+        () => entry.markEntered(id: row.id, enteredBy: 'clerk'),
+        throwsStateError,
+      );
+    },
+  );
 
   test('undo entered requires confirmation', () async {
     await importCount(1, prefix: 'UNDO');
@@ -196,11 +194,7 @@ void main() {
     )).single;
     await entry.markEntered(id: row.id, enteredBy: 'clerk');
     expect(
-      () => entry.undoEntered(
-        id: row.id,
-        confirmed: false,
-        changedBy: 'clerk',
-      ),
+      () => entry.undoEntered(id: row.id, confirmed: false, changedBy: 'clerk'),
       throwsStateError,
     );
     final undone = await entry.undoEntered(
@@ -222,10 +216,7 @@ void main() {
       () => receipts.softDelete(id: row.id, changedBy: 'clerk'),
       throwsStateError,
     );
-    await entry.requestDeleteReviewForEntered(
-      id: row.id,
-      changedBy: 'clerk',
-    );
+    await entry.requestDeleteReviewForEntered(id: row.id, changedBy: 'clerk');
     final flagged = await receipts.getById(row.id);
     expect(flagged!.reviewStatus, DbReviewStatus.needsReconciliation);
     await entry.softDeleteAfterReview(id: row.id, changedBy: 'clerk');

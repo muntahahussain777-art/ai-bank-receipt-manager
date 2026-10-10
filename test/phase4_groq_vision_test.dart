@@ -23,22 +23,24 @@ import 'support/test_db_harness.dart';
 void main() {
   group('ReceiptExtractionValidator', () {
     test('1 clear receipt JSON parses all fields', () {
-      final result = ReceiptExtractionValidator.parse(jsonEncode({
-        'bankName': 'Meezan Bank',
-        'senderBankAccountName': 'Ali Ahmed',
-        'receiverBankAccountName': 'Azlan Traders',
-        'amount': 125000.5,
-        'currency': 'PKR',
-        'transactionReference': 'TXN-991',
-        'transactionDateTime': '2026-10-10T14:22:00',
-        'whatsappSender': 'Office Admin',
-        'adminMessage': 'Customer Ali Ahmed Mutalib',
-        'maskedAccountNumbers': ['****1234'],
-        'uncertainFields': <String>[],
-        'missingFields': <String>[],
-        'fieldConfidence': {'amount': 0.95, 'bankName': 0.9},
-        'overallConfidence': 0.92,
-      }));
+      final result = ReceiptExtractionValidator.parse(
+        jsonEncode({
+          'bankName': 'Meezan Bank',
+          'senderBankAccountName': 'Ali Ahmed',
+          'receiverBankAccountName': 'Azlan Traders',
+          'amount': 125000.5,
+          'currency': 'PKR',
+          'transactionReference': 'TXN-991',
+          'transactionDateTime': '2026-10-10T14:22:00',
+          'whatsappSender': 'Office Admin',
+          'adminMessage': 'Customer Ali Ahmed Mutalib',
+          'maskedAccountNumbers': ['****1234'],
+          'uncertainFields': <String>[],
+          'missingFields': <String>[],
+          'fieldConfidence': {'amount': 0.95, 'bankName': 0.9},
+          'overallConfidence': 0.92,
+        }),
+      );
       expect(result.isOk, isTrue);
       expect(result.extraction!.bankName, 'Meezan Bank');
       expect(result.extraction!.amount, 125000.5);
@@ -47,14 +49,16 @@ void main() {
     });
 
     test('2 blurry receipt leaves amount null without inventing', () {
-      final result = ReceiptExtractionValidator.parse(jsonEncode({
-        'bankName': 'HBL',
-        'amount': null,
-        'currency': 'PKR',
-        'missingFields': ['amount', 'transactionReference'],
-        'uncertainFields': ['senderBankAccountName'],
-        'overallConfidence': 0.2,
-      }));
+      final result = ReceiptExtractionValidator.parse(
+        jsonEncode({
+          'bankName': 'HBL',
+          'amount': null,
+          'currency': 'PKR',
+          'missingFields': ['amount', 'transactionReference'],
+          'uncertainFields': ['senderBankAccountName'],
+          'overallConfidence': 0.2,
+        }),
+      );
       expect(result.isOk, isTrue);
       expect(result.extraction!.amount, isNull);
       expect(result.extraction!.transactionReference, isNull);
@@ -62,22 +66,26 @@ void main() {
     });
 
     test('3 missing transaction reference stays null', () {
-      final result = ReceiptExtractionValidator.parse(jsonEncode({
-        'bankName': 'UBL',
-        'amount': 500,
-        'transactionReference': null,
-        'missingFields': ['transactionReference'],
-      }));
+      final result = ReceiptExtractionValidator.parse(
+        jsonEncode({
+          'bankName': 'UBL',
+          'amount': 500,
+          'transactionReference': null,
+          'missingFields': ['transactionReference'],
+        }),
+      );
       expect(result.extraction!.transactionReference, isNull);
     });
 
     test('4 screenshot with admin note keeps whatsapp fields', () {
-      final result = ReceiptExtractionValidator.parse(jsonEncode({
-        'bankName': 'JazzCash',
-        'amount': 2000,
-        'whatsappSender': '+92 300 1112222',
-        'adminMessage': 'Dealer Farhan AD outgoing',
-      }));
+      final result = ReceiptExtractionValidator.parse(
+        jsonEncode({
+          'bankName': 'JazzCash',
+          'amount': 2000,
+          'whatsappSender': '+92 300 1112222',
+          'adminMessage': 'Dealer Farhan AD outgoing',
+        }),
+      );
       expect(result.extraction!.whatsappSender, startsWith('+92'));
       expect(result.extraction!.adminMessage, contains('Farhan'));
     });
@@ -95,11 +103,13 @@ void main() {
     });
 
     test('unknown / n/a strings become null (no invention)', () {
-      final result = ReceiptExtractionValidator.parse(jsonEncode({
-        'bankName': 'unknown',
-        'currency': 'N/A',
-        'transactionReference': 'null',
-      }));
+      final result = ReceiptExtractionValidator.parse(
+        jsonEncode({
+          'bankName': 'unknown',
+          'currency': 'N/A',
+          'transactionReference': 'null',
+        }),
+      );
       expect(result.extraction!.bankName, isNull);
       expect(result.extraction!.currency, isNull);
       expect(result.extraction!.transactionReference, isNull);
@@ -137,7 +147,10 @@ void main() {
         keyStore: store,
         client: GroqVisionClient(
           httpClient: MockClient((request) async {
-            return http.Response('{"choices":[{"message":{"content":"{\\"ok\\":true}"}}]}', 200);
+            return http.Response(
+              '{"choices":[{"message":{"content":"{\\"ok\\":true}"}}]}',
+              200,
+            );
           }),
         ),
       );
@@ -477,44 +490,47 @@ void main() {
       expect(rows.first['masked_key_hint'], isNot(contains('super_secret')));
     });
 
-    test('malformed provider content becomes failed job with image kept', () async {
-      final client = GroqVisionClient(
-        httpClient: MockClient((request) async {
-          return http.Response(
-            jsonEncode({
-              'choices': [
-                {
-                  'message': {'content': 'TOTALLY NOT JSON'},
-                },
-              ],
-            }),
-            200,
-          );
-        }),
-      );
-      final manager = GroqKeyManager(
-        configs: configs,
-        keyStore: store,
-        client: client,
-      );
-      await manager.addKey(label: 'K', apiKey: 'gsk_malformed_key_gggggggg');
-      final vision = ReceiptVisionService(
-        keyManager: manager,
-        configs: configs,
-        extractions: extractions,
-        receipts: receipts,
-        imagesDirectoryPath: harness.paths.imagesDirectoryPath,
-        client: client,
-      );
-      final image = await _writeTempImage(harness);
-      final result = await vision.processAuthorizedImage(
-        sourceFile: image,
-        userAuthorizedUpload: true,
-      );
-      expect(result.isSuccess, isFalse);
-      expect(result.failure!.kind, GroqFailureKind.malformedResponse);
-      expect(File(result.imagePath).existsSync(), isTrue);
-    });
+    test(
+      'malformed provider content becomes failed job with image kept',
+      () async {
+        final client = GroqVisionClient(
+          httpClient: MockClient((request) async {
+            return http.Response(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': 'TOTALLY NOT JSON'},
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+        final manager = GroqKeyManager(
+          configs: configs,
+          keyStore: store,
+          client: client,
+        );
+        await manager.addKey(label: 'K', apiKey: 'gsk_malformed_key_gggggggg');
+        final vision = ReceiptVisionService(
+          keyManager: manager,
+          configs: configs,
+          extractions: extractions,
+          receipts: receipts,
+          imagesDirectoryPath: harness.paths.imagesDirectoryPath,
+          client: client,
+        );
+        final image = await _writeTempImage(harness);
+        final result = await vision.processAuthorizedImage(
+          sourceFile: image,
+          userAuthorizedUpload: true,
+        );
+        expect(result.isSuccess, isFalse);
+        expect(result.failure!.kind, GroqFailureKind.malformedResponse);
+        expect(File(result.imagePath).existsSync(), isTrue);
+      },
+    );
 
     test('model unavailable is classified', () async {
       final client = GroqVisionClient(
