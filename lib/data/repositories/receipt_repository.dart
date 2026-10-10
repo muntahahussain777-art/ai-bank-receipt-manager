@@ -502,7 +502,7 @@ class ReceiptRepository {
       kind: ReconciliationCaseKind.reopen,
       reason:
           reason ??
-              'Reconciliation reopened. Office entry may still need review.',
+          'Reconciliation reopened. Office entry may still need review.',
       diffs: const [],
       previousAmount: existing.priorAmount ?? existing.amount,
       correctedAmount: existing.amount,
