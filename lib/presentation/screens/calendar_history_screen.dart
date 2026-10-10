@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/notice_panel.dart';
@@ -31,7 +31,7 @@ class CalendarHistoryScreen extends ConsumerWidget {
       children: [
         NoticePanel(
           message:
-              'Calendar and search use stored SQLite receipts. Late receipts '
+              'Calendar and search use saved local receipts. Late receipts '
               'can be assigned to past accounting dates from Import.',
           icon: Icons.history,
           foreground: theme.colorScheme.onSecondaryContainer,

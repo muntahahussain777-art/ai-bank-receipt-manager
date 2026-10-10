@@ -58,7 +58,7 @@ class PdfReportBuilder {
         pw.Text(document.subtitle, style: const pw.TextStyle(fontSize: 9)),
         pw.SizedBox(height: 4),
         pw.Text(
-          'Source: saved SQLite data. Export does not change entry statuses.',
+          'Source: saved local records. Export does not change entry statuses.',
           style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
         ),
         pw.Divider(),

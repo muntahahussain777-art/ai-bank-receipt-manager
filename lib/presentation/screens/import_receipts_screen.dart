@@ -5,10 +5,12 @@ import 'package:ai_bank_receipt_manager/application/import/batch_import_service.
 import 'package:ai_bank_receipt_manager/application/import/receipt_ingestion.dart';
 import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
+import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/data/groq/groq_errors.dart';
 import 'package:ai_bank_receipt_manager/data/groq/receipt_extraction.dart';
 import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
+import 'package:ai_bank_receipt_manager/presentation/screens/receipt_processing_dialog.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/notice_panel.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/page_scroll.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/section_header.dart';
@@ -238,29 +240,41 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
   }
 
   Future<void> _manualEntry() async {
-    final extraction = await showDialog<ReceiptExtraction>(
+    final outcome = await showReceiptProcessingDialog(
       context: context,
-      builder: (context) => const _ExtractionReviewDialog(
-        initial: ReceiptExtraction(currency: 'PKR'),
-        imagePath: '(no image)',
-        title: 'Manual receipt entry',
-      ),
+      ref: ref,
+      initial: const ReceiptExtraction(currency: 'PKR'),
+      imagePath: '',
+      title: 'Receipt Processing â€” Manual entry',
     );
-    if (extraction == null) {
+    if (outcome == null) {
       return;
     }
     setState(() {
       _busy = true;
-      _status = 'Saving manual entry…';
+      _status = 'Saving manual entryâ€¦';
     });
     try {
       final service = await ref.read(batchImportServiceProvider.future);
-      await service.saveManualEntry(
+      final saved = await service.saveManualEntry(
         accountingDate: ref.read(selectedAccountingDateProvider),
-        fields: extraction,
-        adminMessage: extraction.adminMessage,
+        fields: outcome.extraction,
+        adminMessage: outcome.adminMessage,
+      );
+      final receipts = await ref.read(receiptRepositoryProvider.future);
+      await receipts.updateReceipt(
+        updated: saved.copyWith(
+          mappedAccountId: outcome.mappedAccountId,
+          customerId: outcome.customerId,
+          dealerId: outcome.dealerId,
+          receiptType: outcome.receiptType ?? saved.receiptType,
+          reviewStatus: outcome.reviewStatus ?? saved.reviewStatus,
+        ),
+        changedBy: 'manual_entry',
+        reason: 'Manual entry attribution confirmed',
       );
       ref.invalidate(recentImportBatchesProvider);
+      invalidateDeskProviders(ref);
       setState(() => _status = 'Manual receipt saved.');
     } catch (error) {
       setState(() => _status = '$error');
@@ -280,13 +294,13 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
     }
     setState(() {
       _busy = true;
-      _status = 'Authorizing ${files.length} file(s)…';
+      _status = 'Authorizing ${files.length} file(s)â€¦';
     });
 
     try {
       final authorized = await _confirmUpload(files.length);
       if (!authorized) {
-        setState(() => _status = 'Import cancelled — nothing uploaded.');
+        setState(() => _status = 'Import cancelled â€” nothing uploaded.');
         return;
       }
 
@@ -296,7 +310,7 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
       final service = await ref.read(batchImportServiceProvider.future);
       final accountingDate = ref.read(selectedAccountingDateProvider);
 
-      setState(() => _status = 'Saving originals to device storage…');
+      setState(() => _status = 'Saving originals to device storageâ€¦');
       final batch = await service.enqueueFiles(
         accountingDate: accountingDate,
         files: files,
@@ -305,7 +319,9 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
         groupIdsByPath: groupMap,
       );
 
-      setState(() => _status = 'Processing batch ${batch.id.substring(0, 8)}…');
+      setState(
+        () => _status = 'Processing batch ${batch.id.substring(0, 8)}â€¦',
+      );
       await service.processQueued(
         batchId: batch.id,
         userAuthorizedUpload: true,
@@ -321,9 +337,10 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
           .read(importQueueRepositoryProvider.future)
           .then((repo) => repo.getBatch(batch.id));
       ref.invalidate(recentImportBatchesProvider);
+      invalidateDeskProviders(ref);
       setState(() {
         _status =
-            'Batch done — success ${refreshed?.successCount ?? 0}, '
+            'Batch done â€” success ${refreshed?.successCount ?? 0}, '
             'failed ${refreshed?.failedCount ?? 0}, '
             'duplicates ${refreshed?.duplicateCount ?? 0}, '
             'pending ${refreshed?.pendingReviewCount ?? 0}.';
@@ -370,7 +387,6 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
         );
       }
       if (choice.decision == DuplicateDecision.reviewExisting) {
-        // Keep as skip for queue accounting; user was shown the existing id.
         return BatchItemReviewOutcome(
           extraction: initial,
           duplicateDecision: DuplicateDecision.skip,
@@ -385,27 +401,30 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
       return null;
     }
 
-    final corrected = await showDialog<ReceiptExtraction>(
+    final outcome = await showReceiptProcessingDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => _ExtractionReviewDialog(
-        initial: initial,
-        imagePath: item.storedPath,
-        failure: vision?.failure,
-        rawJson: vision?.extractionRecord.rawAiJson,
-        title: item.mimeType?.contains('pdf') == true
-            ? 'PDF receipt — enter fields'
-            : 'Review extraction',
-      ),
+      ref: ref,
+      initial: initial,
+      imagePath: item.storedPath,
+      failure: vision?.failure,
+      rawJson: vision?.extractionRecord.rawAiJson,
+      title: item.mimeType?.contains('pdf') == true
+          ? 'Receipt Processing (PDF)'
+          : 'Receipt Processing',
     );
-    if (corrected == null) {
+    if (outcome == null) {
       return null;
     }
     return BatchItemReviewOutcome(
-      extraction: corrected,
-      adminMessage: corrected.adminMessage,
+      extraction: outcome.extraction,
+      adminMessage: outcome.adminMessage,
       duplicateDecision: decision,
       duplicateOfReceiptId: duplicateOf,
+      mappedAccountId: outcome.mappedAccountId,
+      customerId: outcome.customerId,
+      dealerId: outcome.dealerId,
+      receiptType: outcome.receiptType,
+      reviewStatus: outcome.reviewStatus,
     );
   }
 
@@ -513,18 +532,18 @@ class _BatchCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Batch ${batch.id.substring(0, 8)} · ${batch.source}',
+            'Batch ${batch.id.substring(0, 8)} Â· ${batch.source}',
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 6),
           Text(
-            'Accounting ${formatAccountingDate(batch.accountingDate)} · '
+            'Accounting ${formatAccountingDate(batch.accountingDate)} Â· '
             'Imported ${batch.importedAt.toLocal()}',
           ),
           const SizedBox(height: 4),
           Text(
-            'Files ${batch.fileCount} · OK ${batch.successCount} · '
-            'Failed ${batch.failedCount} · Dup ${batch.duplicateCount} · '
+            'Files ${batch.fileCount} Â· OK ${batch.successCount} Â· '
+            'Failed ${batch.failedCount} Â· Dup ${batch.duplicateCount} Â· '
             'Pending ${batch.pendingReviewCount}',
           ),
           Text('Status: ${batch.batchStatus.storageValue}'),
@@ -562,7 +581,7 @@ class _DuplicateDialog extends StatelessWidget {
             const SizedBox(height: 12),
             for (final match in matches.take(5)) ...[
               Text(
-                '${match.existing.bankName} · ${match.existing.amount} · '
+                '${match.existing.bankName} Â· ${match.existing.amount} Â· '
                 '${match.existing.transactionId ?? 'no ref'}',
               ),
               Text(
@@ -604,176 +623,5 @@ class _DuplicateDialog extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _ExtractionReviewDialog extends StatefulWidget {
-  const _ExtractionReviewDialog({
-    required this.initial,
-    required this.imagePath,
-    this.failure,
-    this.rawJson,
-    this.title = 'Review AI extraction',
-  });
-
-  final ReceiptExtraction initial;
-  final String imagePath;
-  final GroqFailure? failure;
-  final String? rawJson;
-  final String title;
-
-  @override
-  State<_ExtractionReviewDialog> createState() =>
-      _ExtractionReviewDialogState();
-}
-
-class _ExtractionReviewDialogState extends State<_ExtractionReviewDialog> {
-  late final TextEditingController _bank;
-  late final TextEditingController _sender;
-  late final TextEditingController _receiver;
-  late final TextEditingController _amount;
-  late final TextEditingController _currency;
-  late final TextEditingController _reference;
-  late final TextEditingController _dateTime;
-  late final TextEditingController _whatsapp;
-  late final TextEditingController _admin;
-
-  @override
-  void initState() {
-    super.initState();
-    final i = widget.initial;
-    _bank = TextEditingController(text: i.bankName ?? '');
-    _sender = TextEditingController(text: i.senderBankAccountName ?? '');
-    _receiver = TextEditingController(text: i.receiverBankAccountName ?? '');
-    _amount = TextEditingController(
-      text: i.amount == null ? '' : i.amount!.toString(),
-    );
-    _currency = TextEditingController(text: i.currency ?? 'PKR');
-    _reference = TextEditingController(text: i.transactionReference ?? '');
-    _dateTime = TextEditingController(text: i.transactionDateTimeRaw ?? '');
-    _whatsapp = TextEditingController(text: i.whatsappSender ?? '');
-    _admin = TextEditingController(text: i.adminMessage ?? '');
-  }
-
-  @override
-  void dispose() {
-    _bank.dispose();
-    _sender.dispose();
-    _receiver.dispose();
-    _amount.dispose();
-    _currency.dispose();
-    _reference.dispose();
-    _dateTime.dispose();
-    _whatsapp.dispose();
-    _admin.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
-        width: 480,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.failure != null)
-                NoticePanel(
-                  message:
-                      'AI failed (${widget.failure!.kind.name}): '
-                      '${widget.failure!.message}. Image preserved.',
-                  icon: Icons.warning_amber_outlined,
-                  foreground: theme.colorScheme.onErrorContainer,
-                  background: theme.colorScheme.errorContainer,
-                ),
-              const SizedBox(height: 8),
-              Text(
-                'File: ${widget.imagePath}',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'WhatsApp sender is not the bank sender.',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              _field(_bank, 'Bank name'),
-              _field(_sender, 'Sender bank account name'),
-              _field(_receiver, 'Receiver bank account name'),
-              _field(_amount, 'Amount', keyboard: TextInputType.number),
-              _field(_currency, 'Currency'),
-              _field(_reference, 'Transaction reference'),
-              _field(_dateTime, 'Transaction date/time'),
-              _field(_whatsapp, 'WhatsApp sender (if visible)'),
-              _field(_admin, 'WhatsApp admin note'),
-              if (widget.rawJson != null) ...[
-                const SizedBox(height: 8),
-                Text('Raw AI JSON', style: theme.textTheme.labelLarge),
-                SelectableText(
-                  widget.rawJson!,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            final amountText = _amount.text.trim();
-            Navigator.pop(
-              context,
-              ReceiptExtraction(
-                bankName: _emptyToNull(_bank.text),
-                senderBankAccountName: _emptyToNull(_sender.text),
-                receiverBankAccountName: _emptyToNull(_receiver.text),
-                amount: amountText.isEmpty
-                    ? null
-                    : double.tryParse(amountText.replaceAll(',', '')),
-                currency: _emptyToNull(_currency.text),
-                transactionReference: _emptyToNull(_reference.text),
-                transactionDateTimeRaw: _emptyToNull(_dateTime.text),
-                whatsappSender: _emptyToNull(_whatsapp.text),
-                adminMessage: _emptyToNull(_admin.text),
-                maskedAccountNumbers: widget.initial.maskedAccountNumbers,
-                uncertainFields: widget.initial.uncertainFields,
-                missingFields: widget.initial.missingFields,
-                fieldConfidence: widget.initial.fieldConfidence,
-                overallConfidence: widget.initial.overallConfidence,
-              ),
-            );
-          },
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-
-  Widget _field(
-    TextEditingController controller,
-    String label, {
-    TextInputType? keyboard,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboard,
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
-  }
-
-  String? _emptyToNull(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
   }
 }

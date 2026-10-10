@@ -1,3 +1,4 @@
+import 'package:ai_bank_receipt_manager/application/classification/admin_note_parser.dart';
 import 'package:ai_bank_receipt_manager/data/models/db_enums.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_account_models.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_enums.dart';
@@ -25,6 +26,9 @@ class ClassificationInput {
     this.adminMessage,
     this.whatsappSender,
     this.bankDirectionHint,
+    this.suggestedCustomerName,
+    this.suggestedDealerName,
+    this.suggestedOfficeAccountName,
   });
 
   final String? bankSenderName;
@@ -34,6 +38,11 @@ class ClassificationInput {
 
   /// Optional hint from the bank receipt itself (credit/debit), not office flow.
   final DbReceiptType? bankDirectionHint;
+
+  /// AI / parser hint for accounting party — not the bank sender.
+  final String? suggestedCustomerName;
+  final String? suggestedDealerName;
+  final String? suggestedOfficeAccountName;
 }
 
 class ClassificationResult {
@@ -48,6 +57,10 @@ class ClassificationResult {
     this.officeAccountId,
     this.customerId,
     this.dealerId,
+    this.suggestedCustomerName,
+    this.suggestedDealerName,
+    this.customerConfirmationRequired = false,
+    this.dealerConfirmationRequired = false,
   });
 
   final DbReceiptType proposedReceiptType;
@@ -60,6 +73,12 @@ class ClassificationResult {
   final String? officeAccountId;
   final String? customerId;
   final String? dealerId;
+
+  /// Display name for review UI when no unique customer id was linked.
+  final String? suggestedCustomerName;
+  final String? suggestedDealerName;
+  final bool customerConfirmationRequired;
+  final bool dealerConfirmationRequired;
 }
 
 /// Applies Customer -> Office (incoming) and Office -> Dealer (outgoing)
@@ -94,13 +113,37 @@ class BusinessClassificationService {
       activeAccounts,
       accountAliases,
     );
-    final customerHits = [
-      ..._matchCustomers(input.bankSenderName, customers, customerAliases),
-      ..._matchCustomers(input.adminMessage, customers, customerAliases),
+    final suggestedOfficeHits = _matchAccounts(
+      input.suggestedOfficeAccountName,
+      activeAccounts,
+      accountAliases,
+    );
+
+    // Accounting party comes from the admin note / AI suggestion — never from
+    // bank sender or WhatsApp forwarder alone.
+    final adminNames = AdminNoteParser.extractAttributionNames(
+      input.adminMessage,
+    );
+    final attributionNames = <String>[
+      if (input.suggestedCustomerName != null &&
+          input.suggestedCustomerName!.trim().isNotEmpty)
+        input.suggestedCustomerName!.trim(),
+      if (input.suggestedDealerName != null &&
+          input.suggestedDealerName!.trim().isNotEmpty)
+        input.suggestedDealerName!.trim(),
+      ...adminNames,
     ];
-    final dealerHits = [
-      ..._matchDealers(input.bankReceiverName, dealers, dealerAliases),
-      ..._matchDealers(input.adminMessage, dealers, dealerAliases),
+    final customerHits = <AliasHit>[
+      for (final name in attributionNames)
+        ..._matchCustomers(name, customers, customerAliases),
+      ..._matchCustomersInText(input.adminMessage, customers, customerAliases),
+    ];
+    final dealerHits = <AliasHit>[
+      for (final name in attributionNames)
+        ..._matchDealers(name, dealers, dealerAliases),
+      ..._matchDealersInText(input.adminMessage, dealers, dealerAliases),
+      if (AdminNoteParser.suggestsDealer(input.adminMessage))
+        ..._matchDealers(input.bankReceiverName, dealers, dealerAliases),
     ];
 
     final reasons = <String>[];
@@ -110,6 +153,16 @@ class BusinessClassificationService {
     String? officeId;
     String? customerId;
     String? dealerId;
+    String? suggestedCustomerName =
+        input.suggestedCustomerName?.trim().isNotEmpty == true
+        ? input.suggestedCustomerName!.trim()
+        : (adminNames.isNotEmpty ? adminNames.first : null);
+    String? suggestedDealerName =
+        input.suggestedDealerName?.trim().isNotEmpty == true
+        ? input.suggestedDealerName!.trim()
+        : null;
+    var customerConfirmationRequired = false;
+    var dealerConfirmationRequired = false;
 
     final senderOffice = _decisiveHits(senderHits);
     final receiverOffice = _decisiveHits(receiverHits);
@@ -163,23 +216,73 @@ class BusinessClassificationService {
     final uniqueDealers = _uniqueHits(dealerHits);
     if (uniqueCustomers.length == 1 && proposed == DbReceiptType.received) {
       customerId = uniqueCustomers.first.entityId;
+      suggestedCustomerName ??= uniqueCustomers.first.label;
+      customerConfirmationRequired = !uniqueCustomers.first.exact;
+      if (customerConfirmationRequired) {
+        needsReview = true;
+        reasons.add(
+          'Customer ${uniqueCustomers.first.label} matched approximately; '
+          'confirmation required.',
+        );
+      } else {
+        reasons.add(
+          'Admin note matched customer ${uniqueCustomers.first.label}.',
+        );
+        // Still require desk confirmation for accounting attribution.
+        customerConfirmationRequired = true;
+        needsReview = true;
+        reasons.add('Confirm customer attribution before final save.');
+      }
     } else if (uniqueCustomers.length > 1) {
       needsReview = true;
+      customerConfirmationRequired = true;
       reasons.add('Several customers matched; confirmation required.');
+    } else if (suggestedCustomerName != null &&
+        proposed == DbReceiptType.received) {
+      needsReview = true;
+      customerConfirmationRequired = true;
+      reasons.add(
+        'Suggested customer "$suggestedCustomerName" from admin note — '
+        'select or create manually if not linked.',
+      );
     }
+
     if (uniqueDealers.length == 1 && proposed == DbReceiptType.sent) {
       dealerId = uniqueDealers.first.entityId;
+      suggestedDealerName ??= uniqueDealers.first.label;
+      dealerConfirmationRequired = true;
+      needsReview = true;
+      reasons.add(
+        'Confirm dealer ${uniqueDealers.first.label} before final save.',
+      );
     } else if (uniqueDealers.length > 1) {
       needsReview = true;
+      dealerConfirmationRequired = true;
       reasons.add('Several dealers matched; confirmation required.');
     }
 
-    final adminOffice = _decisiveHits(adminAccountHits);
+    // Never treat bank sender / WhatsApp forwarder as the accounting customer.
+    final suggestedCust = suggestedCustomerName;
+    if (input.whatsappSender != null &&
+        suggestedCust != null &&
+        normalizeAlias(input.whatsappSender!) ==
+            normalizeAlias(suggestedCust)) {
+      needsReview = true;
+      reasons.add(
+        'WhatsApp sender matches suggested customer name — confirm carefully; '
+        'forwarder is not automatically the accounting customer.',
+      );
+    }
+
+    final adminOffice = _decisiveHits([
+      ...adminAccountHits,
+      ...suggestedOfficeHits,
+    ]);
     if (adminOffice.length == 1) {
       if (officeId == null) {
         officeId = adminOffice.first.entityId;
         reasons.add(
-          'Admin message suggested office account ${adminOffice.first.label} '
+          'Admin / suggested office account ${adminOffice.first.label} '
           '(not treated as bank-direction proof).',
         );
         needsReview = true;
@@ -217,12 +320,17 @@ class BusinessClassificationService {
         ...senderHits,
         ...receiverHits,
         ...adminAccountHits,
+        ...suggestedOfficeHits,
       ],
       customerSuggestions: uniqueCustomers,
       dealerSuggestions: uniqueDealers,
       officeAccountId: officeId,
       customerId: customerId,
       dealerId: dealerId,
+      suggestedCustomerName: suggestedCustomerName,
+      suggestedDealerName: suggestedDealerName,
+      customerConfirmationRequired: customerConfirmationRequired,
+      dealerConfirmationRequired: dealerConfirmationRequired,
     );
   }
 
@@ -330,6 +438,41 @@ class BusinessClassificationService {
     return hits;
   }
 
+  List<AliasHit> _matchCustomersInText(
+    String? text,
+    List<CustomerRecord> customers,
+    Map<String, List<PartyAliasRecord>> aliases,
+  ) {
+    if (text == null || text.trim().isEmpty) {
+      return const [];
+    }
+    final hits = <AliasHit>[];
+    for (final customer in customers) {
+      if (customer.deletedAt != null) {
+        continue;
+      }
+      final names = [
+        customer.name,
+        for (final alias in aliases[customer.id] ?? const [])
+          if (alias.approvalStatus == AliasApprovalStatus.approved)
+            alias.aliasName,
+      ];
+      for (final name in names) {
+        if (_textMentionsAlias(text, name) || aliasesLookSimilar(text, name)) {
+          hits.add(
+            AliasHit(
+              entityId: customer.id,
+              label: customer.name,
+              matchedAlias: name,
+              exact: _textMentionsAlias(text, name),
+            ),
+          );
+        }
+      }
+    }
+    return hits;
+  }
+
   List<AliasHit> _matchDealers(
     String? raw,
     List<DealerRecord> dealers,
@@ -358,6 +501,74 @@ class BusinessClassificationService {
       );
     }
     return hits;
+  }
+
+  List<AliasHit> _matchDealersInText(
+    String? text,
+    List<DealerRecord> dealers,
+    Map<String, List<PartyAliasRecord>> aliases,
+  ) {
+    if (text == null || text.trim().isEmpty) {
+      return const [];
+    }
+    final hits = <AliasHit>[];
+    for (final dealer in dealers) {
+      if (dealer.deletedAt != null) {
+        continue;
+      }
+      final names = [
+        dealer.name,
+        for (final alias in aliases[dealer.id] ?? const [])
+          if (alias.approvalStatus == AliasApprovalStatus.approved)
+            alias.aliasName,
+      ];
+      for (final name in names) {
+        if (_textMentionsAlias(text, name) || aliasesLookSimilar(text, name)) {
+          hits.add(
+            AliasHit(
+              entityId: dealer.id,
+              label: dealer.name,
+              matchedAlias: name,
+              exact: _textMentionsAlias(text, name),
+            ),
+          );
+        }
+      }
+    }
+    return hits;
+  }
+
+  /// Whole-token mention so short aliases like "Ali" do not match inside "Mutalib".
+  bool _textMentionsAlias(String text, String name) {
+    final normalizedText = normalizeAlias(text);
+    final normalizedName = normalizeAlias(name);
+    if (normalizedText.isEmpty || normalizedName.isEmpty) {
+      return false;
+    }
+    if (normalizedText == normalizedName) {
+      return true;
+    }
+    final textTokens = normalizedText.split(' ');
+    final nameTokens = normalizedName.split(' ');
+    if (nameTokens.length == 1) {
+      return textTokens.contains(nameTokens.single);
+    }
+    if (nameTokens.length > textTokens.length) {
+      return false;
+    }
+    for (var i = 0; i <= textTokens.length - nameTokens.length; i++) {
+      var match = true;
+      for (var j = 0; j < nameTokens.length; j++) {
+        if (textTokens[i + j] != nameTokens[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        return true;
+      }
+    }
+    return false;
   }
 
   List<AliasHit> _hitsFor({

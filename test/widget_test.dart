@@ -3,11 +3,10 @@ import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart
 import 'package:ai_bank_receipt_manager/application/providers/backup_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/application/security/app_lock_service.dart';
-import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_account_models.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_enums.dart';
 import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
-import 'package:ai_bank_receipt_manager/domain/enums/entry_status.dart';
+import 'package:ai_bank_receipt_manager/domain/entities/receipt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +31,9 @@ final _testAccounts = [
 ];
 
 void main() {
-  testWidgets('dashboard shows the accounting preview', (tester) async {
+  testWidgets('dashboard shows saved local records empty state', (
+    tester,
+  ) async {
     await _pumpApp(tester, const Size(1280, 2400));
 
     expect(find.text('Total Received'), findsOneWidget);
@@ -44,14 +45,9 @@ void main() {
     expect(find.text('Mutalib'), findsWidgets);
     expect(find.text('AD'), findsWidgets);
     expect(find.text('Selected accounting date'), findsOneWidget);
-    expect(find.text(formatPkr(475000)), findsWidgets);
-    expect(find.textContaining('Preview'), findsWidgets);
-
-    await tester.tap(find.byKey(const ValueKey('nav-/pending')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Ali Khan'), findsWidgets);
-    expect(find.text('Hub Filling Station'), findsNothing);
+    expect(find.textContaining('saved local records'), findsWidgets);
+    expect(find.textContaining('Import receipts'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('dashboard lays out on a narrow screen', (tester) async {
@@ -87,28 +83,12 @@ Future<void> _pumpApp(WidgetTester tester, Size size) async {
         selectableOfficeAccountsProvider.overrideWith(
           (ref) async => _testAccounts,
         ),
-        storedReceiptsForSelectedDateProvider.overrideWith((ref) async {
-          final filter = ref.watch(deskListFilterProvider);
-          final all = ref.watch(dailyEntriesProvider);
-          if (filter.statusFilter == null) {
-            return all;
-          }
-          return [
-            for (final receipt in all)
-              if (filter.statusFilter == EntryStatus.pending &&
-                  receipt.status == EntryStatus.pending)
-                receipt
-              else if (filter.statusFilter == EntryStatus.entered &&
-                  receipt.status == EntryStatus.entered)
-                receipt
-              else if (filter.statusFilter == EntryStatus.needsReconciliation &&
-                  receipt.status == EntryStatus.needsReconciliation)
-                receipt,
-          ];
-        }),
+        storedReceiptsForSelectedDateProvider.overrideWith(
+          (ref) async => const <Receipt>[],
+        ),
         dailyDeskSummaryProvider.overrideWith(
           (ref) async => DailyDeskSummary(
-            accountingDate: DateTime(2026, 10, 10),
+            accountingDate: DateTime.now(),
             totalCount: 0,
             totalReceived: 0,
             totalSent: 0,

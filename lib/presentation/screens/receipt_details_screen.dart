@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
@@ -92,7 +92,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
         if (receipt == null) {
           return const PageScroll(
             children: [
-              EmptyState(message: 'Receipt not found in SQLite storage.'),
+              EmptyState(message: 'Receipt not found in local records.'),
             ],
           );
         }
@@ -102,7 +102,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
         return PageScroll(
           children: [
             NoticePanel(
-              message: BusinessRules.winFormsSafety,
+              message: BusinessRules.officeEntrySafety,
               icon: Icons.info_outline,
               foreground: colors.reconciliation,
               background: colors.reconciliationContainer,
@@ -118,7 +118,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                       StatusChip(status: receipt.status),
                       InfoPill(label: receipt.bankName),
                       if (receipt.entryStatusEntered)
-                        const InfoPill(label: 'WinForms tick: Entered'),
+                        const InfoPill(label: 'Office entry: Entered'),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -130,11 +130,11 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                   DefinitionBlock(label: 'Bank', value: receipt.bankName),
                   DefinitionBlock(
                     label: 'Sender',
-                    value: maskAccountNumber(receipt.bankSenderName ?? '—'),
+                    value: maskAccountNumber(receipt.bankSenderName ?? 'â€”'),
                   ),
                   DefinitionBlock(
                     label: 'Receiver',
-                    value: maskAccountNumber(receipt.bankReceiverName ?? '—'),
+                    value: maskAccountNumber(receipt.bankReceiverName ?? 'â€”'),
                   ),
                   DefinitionBlock(
                     label: receipt.partyKind.label,
@@ -177,7 +177,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                 children: [
                   Text('Admin note', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  Text(receipt.adminNote.isEmpty ? '—' : receipt.adminNote),
+                  Text(receipt.adminNote.isEmpty ? 'â€”' : receipt.adminNote),
                 ],
               ),
             ),
@@ -265,7 +265,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
             receipt.entryStatusEntered
                 ? 'This row is Entered. Saving financial changes keeps the tick '
                       'and opens reconciliation.'
-                : 'Changes are saved to SQLite. WinForms is never modified.',
+                : 'Changes are saved to local records. The office accounting system is never modified.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -299,7 +299,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
           TextField(
             controller: _winforms,
             decoration: const InputDecoration(
-              labelText: 'Optional WinForms reference',
+              labelText: 'Optional Office entry reference',
             ),
           ),
           const SizedBox(height: 12),
@@ -422,7 +422,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Undo Entered?'),
         content: const Text(
-          'Confirm only if the WinForms row should no longer count as entered.',
+          'Confirm only if the office entry should no longer count as entered.',
         ),
         actions: [
           TextButton(
@@ -495,7 +495,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      '${c.kind.storageValue} · ${c.status.storageValue}\n'
+                      '${c.kind.storageValue} Â· ${c.status.storageValue}\n'
                       '${c.reason}'
                       '${c.correctionNotes == null ? '' : '\nNotes: ${c.correctionNotes}'}',
                     ),
@@ -506,7 +506,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      '${a.fieldName}: ${a.oldValue ?? '—'} → ${a.newValue ?? '—'}'
+                      '${a.fieldName}: ${a.oldValue ?? 'â€”'} â†’ ${a.newValue ?? 'â€”'}'
                       '${a.reason == null ? '' : '\n${a.reason}'}',
                     ),
                   ),

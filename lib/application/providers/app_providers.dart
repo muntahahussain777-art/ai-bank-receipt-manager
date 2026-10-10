@@ -45,7 +45,7 @@ final receiptByIdProvider = Provider.family<Receipt?, String>((ref, id) {
 
 class SelectedAccountingDate extends Notifier<DateTime> {
   @override
-  DateTime build() => DateTime(2026, 10, 10);
+  DateTime build() => dateOnly(DateTime.now());
 
   void select(DateTime value) {
     state = dateOnly(value);

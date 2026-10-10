@@ -12,6 +12,10 @@ class ReceiptExtraction {
     this.transactionDateTimeRaw,
     this.whatsappSender,
     this.adminMessage,
+    this.suggestedCustomerName,
+    this.suggestedDealerName,
+    this.suggestedOfficeAccountName,
+    this.bankDirectionHint,
     this.maskedAccountNumbers = const [],
     this.uncertainFields = const [],
     this.missingFields = const [],
@@ -28,7 +32,15 @@ class ReceiptExtraction {
   final String? transactionReference;
   final String? transactionDateTimeRaw;
   final String? whatsappSender;
+
+  /// WhatsApp admin note / caption text (also accepts `whatsappMessage` in JSON).
   final String? adminMessage;
+  final String? suggestedCustomerName;
+  final String? suggestedDealerName;
+  final String? suggestedOfficeAccountName;
+
+  /// credit / debit / received / sent / incoming / outgoing — never invent.
+  final String? bankDirectionHint;
   final List<String> maskedAccountNumbers;
   final List<String> uncertainFields;
   final List<String> missingFields;
@@ -40,12 +52,19 @@ class ReceiptExtraction {
     'bankName': bankName,
     'senderBankAccountName': senderBankAccountName,
     'receiverBankAccountName': receiverBankAccountName,
+    'bankSenderName': senderBankAccountName,
+    'bankReceiverName': receiverBankAccountName,
     'amount': amount,
     'currency': currency,
     'transactionReference': transactionReference,
     'transactionDateTime': transactionDateTimeRaw,
     'whatsappSender': whatsappSender,
     'adminMessage': adminMessage,
+    'whatsappMessage': adminMessage,
+    'suggestedCustomerName': suggestedCustomerName,
+    'suggestedDealerName': suggestedDealerName,
+    'suggestedOfficeAccountName': suggestedOfficeAccountName,
+    'bankDirectionHint': bankDirectionHint,
     'maskedAccountNumbers': maskedAccountNumbers,
     'uncertainFields': uncertainFields,
     'missingFields': missingFields,
@@ -157,8 +176,12 @@ abstract final class ReceiptExtractionValidator {
 
     final extraction = ReceiptExtraction(
       bankName: _readString(map['bankName']),
-      senderBankAccountName: _readString(map['senderBankAccountName']),
-      receiverBankAccountName: _readString(map['receiverBankAccountName']),
+      senderBankAccountName: _readString(
+        map['senderBankAccountName'] ?? map['bankSenderName'],
+      ),
+      receiverBankAccountName: _readString(
+        map['receiverBankAccountName'] ?? map['bankReceiverName'],
+      ),
       amount: amount,
       currency: _readString(map['currency']),
       transactionReference: _readString(map['transactionReference']),
@@ -166,9 +189,19 @@ abstract final class ReceiptExtractionValidator {
         map['transactionDateTime'] ?? map['transactionDateTimeRaw'],
       ),
       whatsappSender: _readString(map['whatsappSender']),
-      adminMessage: _readString(map['adminMessage']),
-      maskedAccountNumbers: _readStringList(map['maskedAccountNumbers']),
-      uncertainFields: _readStringList(map['uncertainFields']),
+      adminMessage: _readString(map['adminMessage'] ?? map['whatsappMessage']),
+      suggestedCustomerName: _readString(map['suggestedCustomerName']),
+      suggestedDealerName: _readString(map['suggestedDealerName']),
+      suggestedOfficeAccountName: _readString(
+        map['suggestedOfficeAccountName'],
+      ),
+      bankDirectionHint: _readString(map['bankDirectionHint']),
+      maskedAccountNumbers: _readStringList(
+        map['maskedAccountNumbers'] ?? map['uncertainties'],
+      ),
+      uncertainFields: _readStringList(
+        map['uncertainFields'] ?? map['uncertainties'],
+      ),
       missingFields: _readStringList(map['missingFields']),
       fieldConfidence: confidence ?? const {},
       overallConfidence: overall,

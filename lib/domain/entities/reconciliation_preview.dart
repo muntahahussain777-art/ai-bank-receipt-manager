@@ -12,8 +12,8 @@ class ReconciliationPreview {
     required this.newOfficeAccount,
     this.fieldDiffs = const [],
     this.winFormsMessage =
-        'WinForms may require a manual correction. This app never changes '
-        'WinForms. Confirm only after you understand the difference.',
+        'The office entry may need a manual correction. This app never changes '
+        'the office system. Confirm only after you understand the difference.',
   });
 
   final String reference;
@@ -24,5 +24,7 @@ class ReconciliationPreview {
   final OfficeAccount oldOfficeAccount;
   final OfficeAccount newOfficeAccount;
   final List<FinancialFieldDiff> fieldDiffs;
+
+  /// User-facing safety note about correcting the office entry.
   final String winFormsMessage;
 }

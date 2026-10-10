@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/account_mask.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
@@ -27,10 +27,10 @@ class AccountMappingScreen extends ConsumerWidget {
       children: [
         NoticePanel(
           message:
-              'Office accounts are stored in SQLite and can be added, renamed, '
+              'Office accounts are saved in local records and can be added, renamed, '
               'aliased, archived, or restored. Defaults Mutalib and AD are '
               'editable records, not permanent identities. '
-              '${BusinessRules.winFormsSafety}',
+              '${BusinessRules.officeEntrySafety}',
           icon: Icons.account_balance_outlined,
           foreground: theme.colorScheme.onSecondaryContainer,
           background: theme.colorScheme.secondaryContainer,
@@ -263,11 +263,11 @@ class OfficeAccountDetailsScreen extends ConsumerWidget {
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(
-                              '${row['bank_name']} · ${formatPkr((row['amount'] as num).toDouble())}',
+                              '${row['bank_name']} Â· ${formatPkr((row['amount'] as num).toDouble())}',
                             ),
                             subtitle: Text(
-                              'Accounting ${row['accounting_date']} · '
-                              '${row['entry_status']} · ${row['transaction_id'] ?? '—'}',
+                              'Accounting ${row['accounting_date']} Â· '
+                              '${row['entry_status']} Â· ${row['transaction_id'] ?? 'â€”'}',
                             ),
                           ),
                       ],
@@ -323,7 +323,7 @@ class _OfficeAccountCard extends ConsumerWidget {
               return Text(
                 aliases
                     .map((alias) => maskAccountNumber(alias.aliasName))
-                    .join(' · '),
+                    .join(' Â· '),
                 style: theme.textTheme.bodyLarge,
               );
             },

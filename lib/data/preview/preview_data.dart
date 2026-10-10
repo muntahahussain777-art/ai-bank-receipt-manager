@@ -83,7 +83,7 @@ final List<Receipt> previewReceipts = [
     bankDirection: BankDirection.credit,
     officeFlow: OfficeFlow.customerToOffice,
     adminNote:
-        'Bilal Ahmed to Mutalib. Check the amount before the WinForms correction.',
+        'Bilal Ahmed to Mutalib. Check the amount before the office entry correction.',
     priorAmount: 40000,
   ),
   Receipt(

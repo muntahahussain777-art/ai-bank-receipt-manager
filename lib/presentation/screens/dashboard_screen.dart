@@ -22,80 +22,100 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final date = ref.watch(selectedAccountingDateProvider);
-    final summary = ref.watch(dashboardSummaryProvider);
-    final receipts = ref.watch(dailyEntriesProvider);
-    final accountsAsync = ref.watch(officeAccountsProvider);
+    final summaryAsync = ref.watch(dailyDeskSummaryProvider);
+    final receiptsAsync = ref.watch(storedReceiptsForSelectedDateProvider);
+    final accountsAsync = ref.watch(selectableOfficeAccountsProvider);
     final colors = statusColorsOf(context);
     final theme = Theme.of(context);
 
     return PageScroll(
       children: [
-        const PreviewBanner(),
+        NoticePanel(
+          message: BusinessRules.liveDataBanner,
+          icon: Icons.info_outline,
+          foreground: theme.colorScheme.onSecondaryContainer,
+          background: theme.colorScheme.secondaryContainer,
+        ),
         const SizedBox(height: 16),
         Text('Selected accounting date', style: theme.textTheme.labelLarge),
         const SizedBox(height: 4),
         Text(formatAccountingDate(date), style: theme.textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(
-          'Desk totals for this date. Office account cards load from SQLite '
-          'and scale as accounts are added. ${BusinessRules.winFormsSafety}',
+          'Desk totals for this date from your saved local records. '
+          'Office account cards update when you add or rename accounts.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 16),
-        MetricGrid(
-          children: [
-            MetricCard(
-              label: 'Total Received',
-              value: formatPkr(summary.totalReceived),
-              icon: Icons.south_west,
-              color: colors.received,
-            ),
-            MetricCard(
-              label: 'Total Sent',
-              value: formatPkr(summary.totalSent),
-              icon: Icons.north_east,
-              color: colors.sent,
-            ),
-            MetricCard(
-              label: 'Pending Entries',
-              value: formatCount(summary.pendingCount),
-              icon: Icons.hourglass_empty,
-              color: colors.pending,
-            ),
-            MetricCard(
-              label: 'Entered Entries',
-              value: formatCount(summary.enteredCount),
-              icon: Icons.task_alt,
-              color: colors.entered,
-            ),
-            MetricCard(
-              label: 'Reconciliation Required',
-              value: formatCount(summary.reconciliationCount),
-              icon: Icons.rule,
-              color: colors.reconciliation,
-            ),
-          ],
+        summaryAsync.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('Unable to load desk totals: $e'),
+          data: (summary) => MetricGrid(
+            children: [
+              MetricCard(
+                label: 'Total Received',
+                value: formatPkr(summary.totalReceived),
+                icon: Icons.south_west,
+                color: colors.received,
+              ),
+              MetricCard(
+                label: 'Total Sent',
+                value: formatPkr(summary.totalSent),
+                icon: Icons.north_east,
+                color: colors.sent,
+              ),
+              MetricCard(
+                label: 'Pending Entries',
+                value: formatCount(summary.pendingCount),
+                icon: Icons.hourglass_empty,
+                color: colors.pending,
+              ),
+              MetricCard(
+                label: 'Entered Entries',
+                value: formatCount(summary.enteredCount),
+                icon: Icons.task_alt,
+                color: colors.entered,
+              ),
+              MetricCard(
+                label: 'Reconciliation Required',
+                value: formatCount(summary.reconciliationCount),
+                icon: Icons.rule,
+                color: colors.reconciliation,
+              ),
+              MetricCard(
+                label: 'Total Receipts',
+                value: formatCount(summary.totalCount),
+                icon: Icons.receipt_long,
+                color: theme.colorScheme.primary,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         SectionHeader(
           title: 'Office account activity',
-          subtitle: 'Loaded from SQLite. Not limited to Mutalib or AD.',
+          subtitle: 'Confirmed office attributions for this accounting date.',
         ),
         const SizedBox(height: 12),
         accountsAsync.when(
           loading: () => const LinearProgressIndicator(),
           error: (error, _) => Text('Office accounts unavailable: $error'),
-          data: (_) =>
-              _AccountActivityList(activities: summary.accountActivities),
+          data: (accounts) => summaryAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (summary) => _AccountActivityList(
+              activities: _buildActivities(accounts, summary),
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         SectionHeader(
           title: 'Reconciliation required',
           subtitle:
               'Open cases with original vs corrected values. '
-              'Complete only after WinForms is corrected by hand.',
+              'Complete only after the office entry is corrected by hand.',
         ),
         const SizedBox(height: 12),
         Consumer(
@@ -141,8 +161,7 @@ class DashboardScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  'Opened ${formatAccountingDate(c.openedAt)} · '
-                                  '${c.status.storageValue}',
+                                  'Opened ${formatAccountingDate(c.openedAt)}',
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ],
@@ -163,19 +182,64 @@ class DashboardScreen extends ConsumerWidget {
           },
         ),
         const SizedBox(height: 20),
-        SectionHeader(
-          title: 'Receipts on this date',
-          subtitle: '${receipts.length} preview receipts',
+        receiptsAsync.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('Unable to load receipts: $e'),
+          data: (receipts) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionHeader(
+                title: 'Receipts on this date',
+                subtitle: receipts.isEmpty
+                    ? 'No saved receipts yet for this date.'
+                    : '${receipts.length} saved receipt(s)',
+              ),
+              const SizedBox(height: 12),
+              if (receipts.isEmpty)
+                SurfaceCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'No receipts for ${formatAccountingDate(date)}.',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Import a WhatsApp screenshot or add a manual entry '
+                        'to get started.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.tonal(
+                        onPressed: () => context.go('/import'),
+                        child: const Text('Import receipts'),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ReceiptBoard(receipts: receipts),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        if (receipts.isEmpty)
-          const EmptyState(
-            message: 'No preview receipts on this accounting date.',
-          )
-        else
-          ReceiptBoard(receipts: receipts),
       ],
     );
+  }
+
+  List<OfficeAccountActivity> _buildActivities(
+    List<OfficeAccountRecord> accounts,
+    DailyDeskSummary summary,
+  ) {
+    return [
+      for (final account in accounts)
+        OfficeAccountActivity(
+          account: account,
+          received: summary.receivedByAccountId[account.id] ?? 0,
+          sent: summary.sentByAccountId[account.id] ?? 0,
+          count: summary.countByAccountId[account.id] ?? 0,
+        ),
+    ];
   }
 }
 
@@ -240,74 +304,27 @@ class _ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = statusColorsOf(context);
-    final account = activity.account;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(account.displayName, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 2),
           Text(
-            activity.primaryAlias ?? account.status.storageValue,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            activity.account.displayName,
+            style: theme.textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
-          _MoneyLine(
-            label: 'Received',
-            value: formatPkr(activity.received),
-            color: colors.received,
-          ),
-          _MoneyLine(
-            label: 'Sent',
-            value: formatPkr(activity.sent),
-            color: colors.sent,
-          ),
-          const SizedBox(height: 4),
+          if (activity.primaryAlias != null) ...[
+            const SizedBox(height: 2),
+            Text(activity.primaryAlias!, style: theme.textTheme.bodySmall),
+          ],
+          const SizedBox(height: 8),
+          Text('${activity.count} receipt(s)'),
           Text(
-            '${activity.count} receipts on this date',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            'Received ${formatPkr(activity.received)}',
+            style: TextStyle(color: colors.received),
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: () => context.push('/mapping/${account.id}'),
-              child: const Text('Open account'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MoneyLine extends StatelessWidget {
-  const _MoneyLine({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Expanded(child: Text(label)),
           Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: color,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+            'Sent ${formatPkr(activity.sent)}',
+            style: TextStyle(color: colors.sent),
           ),
         ],
       ),

@@ -236,7 +236,7 @@ class ReceiptRepository {
         updatedAt: now,
       ),
       changedBy: enteredBy,
-      reason: 'Marked entered for manual WinForms list.',
+      reason: 'Marked entered for office entry list.',
     );
   }
 
@@ -452,7 +452,7 @@ class ReceiptRepository {
         updated: saved,
         changedAt: now,
         changedBy: completedBy,
-        reason: 'WinForms correction completed — status Entered.',
+        reason: 'Office entry correction completed — status Entered.',
       )) {
         await txn.insert(DbSchema.receiptAudit, AuditMapper.toMap(audit));
       }
@@ -468,7 +468,7 @@ class ReceiptRepository {
             changedAt: now,
             changedBy: completedBy,
             reason:
-                'Reconciliation completed after manual WinForms correction.',
+                'Reconciliation completed after manual office entry correction.',
           ),
         ),
       );
@@ -501,7 +501,8 @@ class ReceiptRepository {
       status: ReconciliationCaseStatus.open,
       kind: ReconciliationCaseKind.reopen,
       reason:
-          reason ?? 'Reconciliation reopened. WinForms may still need review.',
+          reason ??
+              'Reconciliation reopened. Office entry may still need review.',
       diffs: const [],
       previousAmount: existing.priorAmount ?? existing.amount,
       correctedAmount: existing.amount,
@@ -672,7 +673,7 @@ ORDER BY c.opened_at DESC
       status: ReconciliationCaseStatus.open,
       kind: ReconciliationCaseKind.deletion,
       reason:
-          'Entered receipt deleted. Corresponding WinForms entry may need '
+          'Entered receipt deleted. Corresponding office entry may need '
           'reversal.',
       diffs: [
         FinancialFieldDiff(
@@ -929,7 +930,7 @@ GROUP BY accounting_date
         !existing.hasUnresolvedFinancialConflict) {
       throw StateError(
         'Entered receipts require reconciliation review before delete '
-        '(WinForms entry may still exist).',
+        '(office entry may still exist).',
       );
     }
     final now = DateTime.now().toUtc();

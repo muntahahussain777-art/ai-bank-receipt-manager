@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
@@ -43,7 +43,7 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
       children: [
         NoticePanel(
           message:
-              'Mark Entered only after typing into WinForms. Ticks persist '
+              'Mark Entered only after typing into the office system. Ticks persist '
               'across later imports. Financial edits on Entered rows require '
               'reconciliation and never clear the tick silently.',
           icon: Icons.checklist_outlined,
@@ -68,7 +68,7 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
         TextField(
           controller: _search,
           decoration: const InputDecoration(
-            labelText: 'Search bank, reference, admin note…',
+            labelText: 'Search bank, reference, admin noteâ€¦',
             prefixIcon: Icon(Icons.search),
           ),
           onChanged: (value) =>
@@ -115,7 +115,7 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
         const SizedBox(height: 16),
         SectionHeader(
           title: 'Daily list',
-          subtitle: 'Desk order: pending → reconciliation → entered.',
+          subtitle: 'Desk order: pending â†’ reconciliation â†’ entered.',
         ),
         const SizedBox(height: 12),
         receiptsAsync.when(
@@ -171,8 +171,8 @@ class _DailyEntriesScreenState extends ConsumerState<DailyEntriesScreen> {
           builder: (context) => AlertDialog(
             title: const Text('Undo Entered?'),
             content: const Text(
-              'Only undo if the WinForms row was not kept. This does not '
-              'change WinForms.',
+              'Only undo if the office entry was not kept. This does not '
+              'change the office accounting system.',
             ),
             actions: [
               TextButton(
@@ -258,8 +258,8 @@ class _SummaryStrip extends StatelessWidget {
                     Chip(
                       label: Text(
                         '${office.displayName}: '
-                        '${summary.countByAccountId[office.id] ?? 0} txn · '
-                        'in ${formatPkr(summary.receivedByAccountId[office.id] ?? 0)} · '
+                        '${summary.countByAccountId[office.id] ?? 0} txn Â· '
+                        'in ${formatPkr(summary.receivedByAccountId[office.id] ?? 0)} Â· '
                         'out ${formatPkr(summary.sentByAccountId[office.id] ?? 0)}',
                       ),
                     ),

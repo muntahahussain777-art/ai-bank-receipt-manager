@@ -200,6 +200,11 @@ class ReceiptVisionService {
     required DateTime accountingDate,
     String source = 'groq_vision',
     String? existingBatchId,
+    String? mappedAccountId,
+    String? customerId,
+    String? dealerId,
+    DbReceiptType receiptType = DbReceiptType.unknown,
+    DbReviewStatus reviewStatus = DbReviewStatus.pendingReview,
   }) async {
     if (extractionRecord.receiptId != null) {
       throw StateError(
@@ -226,9 +231,12 @@ class ReceiptVisionService {
       originalImagePath: extractionRecord.imagePath,
       imageHash: extractionRecord.imageHash,
       confidenceScore: corrected.overallConfidence,
-      reviewStatus: DbReviewStatus.pendingReview,
+      reviewStatus: reviewStatus,
       notes: corrected.modelNotes,
-      receiptType: DbReceiptType.unknown,
+      receiptType: receiptType,
+      mappedAccountId: mappedAccountId,
+      customerId: customerId,
+      dealerId: dealerId,
     );
 
     await _receipts.appendImport(
@@ -275,6 +283,11 @@ class ReceiptVisionService {
     required ReceiptExtraction manual,
     required DateTime accountingDate,
     String? existingBatchId,
+    String? mappedAccountId,
+    String? customerId,
+    String? dealerId,
+    DbReceiptType receiptType = DbReceiptType.unknown,
+    DbReviewStatus reviewStatus = DbReviewStatus.pendingReview,
   }) {
     return saveCorrectedImport(
       extractionRecord: extractionRecord,
@@ -282,6 +295,11 @@ class ReceiptVisionService {
       accountingDate: accountingDate,
       source: 'manual_after_ai_failure',
       existingBatchId: existingBatchId,
+      mappedAccountId: mappedAccountId,
+      customerId: customerId,
+      dealerId: dealerId,
+      receiptType: receiptType,
+      reviewStatus: reviewStatus,
     );
   }
 

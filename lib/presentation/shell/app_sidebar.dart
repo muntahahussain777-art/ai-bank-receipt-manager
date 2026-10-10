@@ -70,15 +70,28 @@ class _Brand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final mark = DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.primary,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: SizedBox(
+    final mark = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        'assets/icons/app_logo.jpg',
         width: 40,
         height: 40,
-        child: Icon(Icons.account_balance, color: scheme.onPrimary, size: 22),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(
+              Icons.account_balance,
+              color: scheme.onPrimary,
+              size: 22,
+            ),
+          ),
+        ),
       ),
     );
     if (!extended) {
@@ -98,9 +111,12 @@ class _Brand extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('AI Bank Receipt', style: theme.textTheme.titleMedium),
                 Text(
-                  'Phase 1 preview',
+                  'AI Bank Receipt Manager',
+                  style: theme.textTheme.titleMedium,
+                ),
+                Text(
+                  'Office accounting desk',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

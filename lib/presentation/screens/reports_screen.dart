@@ -1,5 +1,6 @@
 import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
+// selectableOfficeAccountsProvider is exported from app_providers.dart
 import 'package:ai_bank_receipt_manager/application/reports/report_export_service.dart';
 import 'package:ai_bank_receipt_manager/application/reports/report_models.dart';
 import 'package:ai_bank_receipt_manager/application/reports/report_query_service.dart';
@@ -44,6 +45,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   DateTime? _dateFrom;
   DateTime? _dateTo;
   String? _bankName;
+  String? _officeAccountId;
   var _includeImages = false;
   var _busy = false;
   String? _lastPath;
@@ -59,8 +61,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         SectionHeader(
           title: 'Reports',
           subtitle:
-              'PDF and Excel exports always read saved SQLite data. '
-              '${BusinessRules.winFormsSafety} Export never changes entry statuses.',
+              'PDF and Excel exports always read your saved local records. '
+              '${BusinessRules.officeEntrySafety} Export never changes entry statuses.',
         ),
         const SizedBox(height: 12),
         SurfaceCard(
@@ -155,6 +157,46 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         ),
                       ),
                     ),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final accountsAsync = ref.watch(
+                        selectableOfficeAccountsProvider,
+                      );
+                      return accountsAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
+                        data: (accounts) => SizedBox(
+                          width: 220,
+                          child: DropdownButtonFormField<String?>(
+                            // ignore: deprecated_member_use
+                            value: _officeAccountId,
+                            isDense: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Office account',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: [
+                              const DropdownMenuItem(
+                                value: null,
+                                child: Text('All offices'),
+                              ),
+                              for (final a in accounts)
+                                DropdownMenuItem(
+                                  value: a.id,
+                                  child: Text(a.displayName),
+                                ),
+                            ],
+                            onChanged: _busy
+                                ? null
+                                : (v) => setState(() {
+                                    _officeAccountId = v;
+                                    _preview = null;
+                                  }),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -230,7 +272,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ],
         const SizedBox(height: 16),
         Text(
-          'Export safety: reports regenerate from the current SQLite desk. '
+          'Export safety: reports regenerate from the current saved desk. '
           'Adding more receipts later includes them on the next export without '
           'resetting Entered ticks.',
           style: theme.textTheme.bodyMedium,
@@ -258,6 +300,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       dateFrom: _dateFrom,
       dateTo: _dateTo,
       bankName: _bankName,
+      mappedAccountId: _officeAccountId,
       includeImageAppendix: _includeImages && _format == ReportFormat.pdf,
     );
   }

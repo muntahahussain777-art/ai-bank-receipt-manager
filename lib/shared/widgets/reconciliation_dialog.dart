@@ -41,7 +41,7 @@ class ReconciliationDialog extends StatelessWidget {
             children: [
               Text(
                 'Reference ${preview.reference}. This receipt was previously '
-                'Entered. Financial values changed and WinForms may still '
+                'Entered. Financial values changed and the office entry may still '
                 'show the old figures.',
                 style: theme.textTheme.bodyMedium,
               ),
@@ -84,14 +84,18 @@ class ReconciliationDialog extends StatelessWidget {
                 for (final diff in preview.fieldDiffs)
                   _ValueLine(
                     label: diff.label,
-                    value: '${diff.oldValue ?? '—'} → ${diff.newValue ?? '—'}',
+                    value:
+                        '${diff.oldValue ?? 'â€”'} â†’ ${diff.newValue ?? 'â€”'}',
                   ),
               ],
               const SizedBox(height: 16),
-              Text('WinForms correction', style: theme.textTheme.titleSmall),
+              Text(
+                'Office entry correction',
+                style: theme.textTheme.titleSmall,
+              ),
               const SizedBox(height: 8),
               Text(
-                '${preview.winFormsMessage} ${BusinessRules.winFormsSafety} '
+                '${preview.winFormsMessage} ${BusinessRules.officeEntrySafety} '
                 'Cancel leaves the receipt unchanged.',
                 style: theme.textTheme.bodyMedium,
               ),

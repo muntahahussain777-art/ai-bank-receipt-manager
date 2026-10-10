@@ -1,7 +1,10 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/backup_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
+import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/data/backup/backup_service.dart';
 import 'package:ai_bank_receipt_manager/data/database/db_schema.dart';
@@ -45,9 +48,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         SectionHeader(
           title: 'Backup and restore',
           subtitle:
-              'Full SQLite + images backup. Groq API keys stay in secure '
+              'Full data + images backup. Groq API keys stay in secure '
               'storage and are never written into a backup. '
-              '${BusinessRules.winFormsSafety}',
+              '${BusinessRules.officeEntrySafety}',
         ),
         const SizedBox(height: 12),
         SurfaceCard(
@@ -148,16 +151,16 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
                 ),
                 Text('Size ${_preview!.manifest.fileSizeBytes ?? 0} bytes'),
                 Text(
-                  'Receipts ${_preview!.manifest.receiptCount} · '
-                  'Entered ${_preview!.manifest.enteredCount} · '
+                  'Receipts ${_preview!.manifest.receiptCount} Â· '
+                  'Entered ${_preview!.manifest.enteredCount} Â· '
                   'Pending ${_preview!.manifest.pendingCount}',
                 ),
                 Text(
-                  'Images ${_preview!.manifest.imageCount} · '
+                  'Images ${_preview!.manifest.imageCount} Â· '
                   'Recon cases ${_preview!.manifest.reconciliationCaseCount}',
                 ),
                 Text(
-                  'Encrypted: ${_preview!.isEncrypted} · '
+                  'Encrypted: ${_preview!.isEncrypted} Â· '
                   'API keys included: ${_preview!.manifest.includesApiKeys}',
                 ),
               ],
@@ -211,28 +214,60 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       _message = null;
     });
     try {
-      // Prefer a user-visible downloads / documents location outside app-private.
-      Directory? external;
-      try {
-        external = await getDownloadsDirectory();
-      } catch (_) {}
-      external ??= await getApplicationDocumentsDirectory();
       final stamp = DateTime.now()
           .toUtc()
           .toIso8601String()
           .replaceAll(':', '-')
           .replaceAll('.', '-');
       final ext = _encrypt ? 'aibackup' : 'zip';
-      final path = p.join(external.path, 'ai_bank_backup_$stamp.$ext');
+      final suggested = 'ai_bank_backup_$stamp.$ext';
+
+      // Build + verify a versioned archive first, then offer a user-visible save.
       final service = await _service();
       final result = await service.createFullBackup(
-        archivePath: path,
         password: _encrypt ? _password.text : null,
       );
+      if (!result.verified) {
+        throw StateError('Backup was not verified.');
+      }
+      final bytes = Uint8List.fromList(
+        File(result.archivePath).readAsBytesSync(),
+      );
+
+      final savedUri = await FilePicker.saveFile(
+        dialogTitle: 'Save data backup outside the app',
+        fileName: suggested,
+        bytes: bytes,
+        mimeType: ext == 'zip' ? 'application/zip' : 'application/octet-stream',
+        type: FileType.custom,
+        allowedExtensions: [ext],
+      );
+
+      if (savedUri != null) {
+        setState(() {
+          _message =
+              'Verified backup saved (${result.manifest.fileSizeBytes} bytes)\n'
+              'File: $suggested\n'
+              'Location: $savedUri\n'
+              'App copy: ${result.archivePath}';
+        });
+        return;
+      }
+
+      // User cancelled the system dialog — keep the verified app copy and
+      // also write a copy under Downloads/Documents when possible.
+      Directory? external;
+      try {
+        external = await getDownloadsDirectory();
+      } catch (_) {}
+      external ??= await getApplicationDocumentsDirectory();
+      final fallback = p.join(external.path, suggested);
+      File(fallback).writeAsBytesSync(bytes, flush: true);
       setState(() {
         _message =
-            'Verified external backup (${result.manifest.fileSizeBytes} bytes)\n'
-            '${result.archivePath}';
+            'Verified backup kept in app storage and copied to:\n'
+            '$fallback\n'
+            '(${result.manifest.fileSizeBytes} bytes)';
       });
     } catch (error) {
       setState(() => _message = '$error');
@@ -370,9 +405,15 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         confirmReplace: true,
         password: password,
       );
-      // Force DB reopen for the rest of the app.
+      // Force DB reopen and refresh every desk surface.
       ref.invalidate(appDatabaseProvider);
       ref.invalidate(receiptRepositoryProvider);
+      ref.invalidate(appStoragePathsProvider);
+      invalidateDeskProviders(ref);
+      ref.invalidate(officeAccountsProvider);
+      ref.invalidate(selectableOfficeAccountsProvider);
+      ref.invalidate(storedCustomersProvider);
+      ref.invalidate(storedDealersProvider);
       setState(() {
         _message =
             'Restore verified. Safety copy: ${result.safetyBackupPath}'

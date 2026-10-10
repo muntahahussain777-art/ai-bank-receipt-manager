@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
 import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
 import 'package:ai_bank_receipt_manager/domain/rules/business_rules.dart';
@@ -24,7 +24,7 @@ class CustomersScreen extends ConsumerWidget {
           message:
               'Customers send money to any active office account. '
               'Renaming or archiving a customer never destroys receipt history. '
-              '${BusinessRules.winFormsSafety}',
+              '${BusinessRules.officeEntrySafety}',
           icon: Icons.groups_outlined,
           foreground: theme.colorScheme.onSecondaryContainer,
           background: theme.colorScheme.secondaryContainer,
@@ -103,7 +103,7 @@ class DealersScreen extends ConsumerWidget {
         NoticePanel(
           message:
               'Any active office account can send money to dealers. '
-              'Archive keeps history. ${BusinessRules.winFormsSafety}',
+              'Archive keeps history. ${BusinessRules.officeEntrySafety}',
           icon: Icons.local_shipping_outlined,
           foreground: theme.colorScheme.onSecondaryContainer,
           background: theme.colorScheme.secondaryContainer,

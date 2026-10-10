@@ -387,6 +387,9 @@ class BatchImportService {
       ].join('\n'),
     );
 
+    final receiptType = outcome.receiptType ?? DbReceiptType.unknown;
+    final reviewStatus = outcome.reviewStatus ?? DbReviewStatus.pendingReview;
+
     late final ReceiptRecord receipt;
     if (visionResult != null && visionResult.isSuccess) {
       receipt = await _vision.saveCorrectedImport(
@@ -395,6 +398,11 @@ class BatchImportService {
         accountingDate: batch.accountingDate,
         source: item.sourceKind,
         existingBatchId: batch.id,
+        mappedAccountId: outcome.mappedAccountId,
+        customerId: outcome.customerId,
+        dealerId: outcome.dealerId,
+        receiptType: receiptType,
+        reviewStatus: reviewStatus,
       );
     } else if (visionResult != null) {
       receipt = await _vision.saveManualAfterFailure(
@@ -402,6 +410,11 @@ class BatchImportService {
         manual: withAdmin,
         accountingDate: batch.accountingDate,
         existingBatchId: batch.id,
+        mappedAccountId: outcome.mappedAccountId,
+        customerId: outcome.customerId,
+        dealerId: outcome.dealerId,
+        receiptType: receiptType,
+        reviewStatus: reviewStatus,
       );
     } else {
       // PDF / failed before extraction row — append directly, keep image/PDF path.
@@ -427,7 +440,11 @@ class BatchImportService {
             originalImagePath: item.storedPath,
             imageHash: item.imageHash,
             notes: withAdmin.modelNotes,
-            receiptType: DbReceiptType.unknown,
+            receiptType: receiptType,
+            mappedAccountId: outcome.mappedAccountId,
+            customerId: outcome.customerId,
+            dealerId: outcome.dealerId,
+            reviewStatus: reviewStatus,
           ),
         ],
         source: item.sourceKind,
@@ -603,10 +620,22 @@ class BatchItemReviewOutcome {
     this.adminMessage,
     this.duplicateDecision = DuplicateDecision.keepSeparate,
     this.duplicateOfReceiptId,
+    this.mappedAccountId,
+    this.customerId,
+    this.dealerId,
+    this.receiptType,
+    this.reviewStatus,
   });
 
   final ReceiptExtraction extraction;
   final String? adminMessage;
   final DuplicateDecision duplicateDecision;
   final String? duplicateOfReceiptId;
+
+  /// Confirmed / suggested office account UUID from local classification.
+  final String? mappedAccountId;
+  final String? customerId;
+  final String? dealerId;
+  final DbReceiptType? receiptType;
+  final DbReviewStatus? reviewStatus;
 }

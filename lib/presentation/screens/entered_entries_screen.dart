@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/page_scroll.dart';
@@ -20,7 +20,7 @@ class EnteredEntriesScreen extends ConsumerWidget {
         SectionHeader(
           title: 'Entered entries',
           subtitle:
-              'Already typed into WinForms for ${formatAccountingDate(date)}. '
+              'Already typed into the office system for ${formatAccountingDate(date)}. '
               'Ticks never clear silently.',
         ),
         const SizedBox(height: 12),

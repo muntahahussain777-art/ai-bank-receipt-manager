@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/domain/enums/entry_status.dart';
@@ -30,7 +30,7 @@ class PendingEntriesScreen extends ConsumerWidget {
         SectionHeader(
           title: 'Pending entries',
           subtitle:
-              'Still to type into WinForms for ${formatAccountingDate(date)}.',
+              'Still to type into the office system for ${formatAccountingDate(date)}.',
         ),
         const SizedBox(height: 12),
         receiptsAsync.when(

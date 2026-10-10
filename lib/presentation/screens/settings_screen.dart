@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/backup_providers.dart';
 import 'package:ai_bank_receipt_manager/data/database/db_schema.dart';
 import 'package:ai_bank_receipt_manager/domain/rules/business_rules.dart';
@@ -157,7 +157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 8),
               Text(
                 'Groq API keys stay in secure storage. Backups never include '
-                'plain-text keys. ${BusinessRules.winFormsSafety}',
+                'plain-text keys. ${BusinessRules.officeEntrySafety}',
                 style: theme.textTheme.bodyMedium,
               ),
             ],

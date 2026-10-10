@@ -15,19 +15,24 @@ abstract final class BusinessRules {
   @Deprecated('Use defaultAdBankAlias — accounts are dynamic.')
   static const adLegal = defaultAdBankAlias;
 
-  static const winFormsSafety =
-      'This app prepares lists for manual entry. It never modifies the '
-      'WinForms application or its database.';
+  static const officeEntrySafety =
+      'This app prepares daily lists for manual office entry. It never '
+      'posts or changes entries in the office accounting system.';
+
+  /// @Deprecated Prefer [officeEntrySafety] for user-facing copy.
+  static const winFormsSafety = officeEntrySafety;
 
   static const directionRule =
       'Bank transaction direction and office accounting attribution are '
       'different. A credit or debit describes the bank account. The office '
       'customer or dealer comes from the WhatsApp admin note.';
 
-  static const previewBanner =
-      'Preview receipt rows may still be sample data. Office accounts, '
-      'customers, and dealers are stored in SQLite. This app never modifies '
-      'the WinForms application or its database.';
+  static const liveDataBanner =
+      'Totals and lists use your saved local records for the selected '
+      'accounting date. This app never changes the office accounting system.';
+
+  /// @Deprecated Prefer [liveDataBanner].
+  static const previewBanner = liveDataBanner;
 
   static const rules = <String>[
     'WhatsApp screenshots may contain a bank receipt and an admin message.',
@@ -36,7 +41,7 @@ abstract final class BusinessRules {
     'Any active office account to a dealer is proposed as outgoing.',
     'The WhatsApp admin note identifies a possible office customer or dealer, but is not bank-direction proof.',
     'Bank transaction direction and office accounting attribution are different.',
-    'The app prepares daily lists for manual entry into the existing C# WinForms application.',
-    'The app must never directly modify WinForms or its database.',
+    'The app prepares daily lists for manual entry into the office accounting system.',
+    'The app must never directly modify the office accounting system or its database.',
   ];
 }

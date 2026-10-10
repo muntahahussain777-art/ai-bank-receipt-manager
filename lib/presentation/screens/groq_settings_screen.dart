@@ -23,9 +23,8 @@ class GroqSettingsScreen extends ConsumerWidget {
         NoticePanel(
           message:
               'API keys are stored in Android secure storage only — never in '
-              'SQLite or source code. Screenshots are uploaded to Groq only '
-              'after you authorize each import. For multi-user distribution, '
-              'route keys through a backend proxy.',
+              'local records or source code. Screenshots are uploaded to Groq '
+              'only after you authorize each import.',
           icon: Icons.lock_outline,
           foreground: theme.colorScheme.onSecondaryContainer,
           background: theme.colorScheme.secondaryContainer,

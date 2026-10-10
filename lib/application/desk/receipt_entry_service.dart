@@ -120,7 +120,7 @@ class ReceiptEntryService {
     if (raiseReconciliation && !userConfirmedReconciliation) {
       throw StateError(
         'Financial edit after Entered requires explicit reconciliation '
-        'confirmation. WinForms may need a manual correction.',
+        'confirmation. The office entry may need a manual correction.',
       );
     }
 
@@ -152,8 +152,8 @@ class ReceiptEntryService {
       status: ReconciliationCaseStatus.open,
       kind: ReconciliationCaseKind.financialEdit,
       reason:
-          'Financial values changed after Entered. WinForms may require '
-          'manual correction.',
+          'Financial values changed after Entered. The office entry may '
+          'require manual correction.',
       correctionNotes: correctionNotes,
       diffs: diffs,
       previousAmount: existing.amount,
@@ -240,7 +240,7 @@ class ReceiptEntryService {
       ),
       changedBy: changedBy,
       reason:
-          'Delete requested for Entered receipt — reconcile WinForms first.',
+          'Delete requested for Entered receipt — reconcile office entry first.',
     );
   }
 

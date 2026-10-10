@@ -39,12 +39,12 @@ void main() {
 
     expect(find.text('Old financial values'), findsOneWidget);
     expect(find.text('New financial values'), findsOneWidget);
-    expect(find.text('WinForms correction'), findsOneWidget);
+    expect(find.text('Office entry correction'), findsOneWidget);
     expect(find.text(formatPkr(40000)), findsOneWidget);
     expect(find.text(formatPkr(45000)), findsOneWidget);
     expect(find.text('Confirm correction'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
-    expect(find.textContaining('WinForms'), findsWidgets);
+    expect(find.textContaining('office'), findsWidgets);
 
     await tester.tap(find.byKey(const Key('reconciliation-cancel')));
     await tester.pumpAndSettle();

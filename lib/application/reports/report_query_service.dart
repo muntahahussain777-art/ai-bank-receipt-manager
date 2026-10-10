@@ -120,9 +120,11 @@ class ReportQueryService {
     DbEntryStatus? entryStatus;
     DbReviewStatus? reviewStatus;
     String? bankName = criteria.bankName;
+    // Explicit office UUID from the UI always wins over report-kind defaults.
     String? mappedAccountId = criteria.mappedAccountId;
     String? customerId = criteria.customerId;
     String? dealerId = criteria.dealerId;
+    final explicitOfficeId = criteria.mappedAccountId;
 
     switch (criteria.kind) {
       case ReportKind.dailyReceipt:
@@ -136,7 +138,9 @@ class ReportQueryService {
         from = criteria.dateFrom;
         to = criteria.dateTo;
       case ReportKind.mutalib:
-        mappedAccountId = DefaultOfficeAccountIds.mutalib;
+        // Prefer explicit UUID from the report screen; fall back to seed id.
+        mappedAccountId =
+            criteria.mappedAccountId ?? DefaultOfficeAccountIds.mutalib;
         if (criteria.dateFrom != null || criteria.dateTo != null) {
           from = criteria.dateFrom;
           to = criteria.dateTo;
@@ -144,7 +148,8 @@ class ReportQueryService {
           accountingDate = criteria.accountingDate;
         }
       case ReportKind.ad:
-        mappedAccountId = DefaultOfficeAccountIds.ad;
+        mappedAccountId =
+            criteria.mappedAccountId ?? DefaultOfficeAccountIds.ad;
         if (criteria.dateFrom != null || criteria.dateTo != null) {
           from = criteria.dateFrom;
           to = criteria.dateTo;
@@ -202,6 +207,10 @@ class ReportQueryService {
       case ReportKind.fullHistory:
         from = criteria.dateFrom;
         to = criteria.dateTo;
+    }
+
+    if (explicitOfficeId != null && explicitOfficeId.isNotEmpty) {
+      mappedAccountId = explicitOfficeId;
     }
 
     return ReceiptListFilter(
@@ -313,7 +322,7 @@ class ReportQueryService {
       parts.add('Bank ${criteria.bankName}');
     }
     if (parts.isEmpty) {
-      parts.add('All matching SQLite receipts');
+      parts.add('All matching saved receipts');
     }
     parts.add(
       'Generated ${DateFormat('dd MMM yyyy HH:mm').format(DateTime.now())}',

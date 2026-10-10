@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/core/formatting/account_mask.dart';
+﻿import 'package:ai_bank_receipt_manager/core/formatting/account_mask.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/domain/entities/receipt.dart';
@@ -86,11 +86,11 @@ class ReceiptCard extends StatelessWidget {
           const SizedBox(height: 12),
           _Fact(
             label: 'Sender',
-            value: maskAccountNumber(receipt.bankSenderName ?? '—'),
+            value: maskAccountNumber(receipt.bankSenderName ?? 'â€”'),
           ),
           _Fact(
             label: 'Receiver',
-            value: maskAccountNumber(receipt.bankReceiverName ?? '—'),
+            value: maskAccountNumber(receipt.bankReceiverName ?? 'â€”'),
           ),
           _Fact(label: receipt.partyKind.label, value: receipt.partyName),
           _Fact(label: 'Office account', value: receipt.officeDisplayLabel),
@@ -100,7 +100,7 @@ class ReceiptCard extends StatelessWidget {
           ),
           _Fact(label: 'Reference', value: receipt.reference),
           if (receipt.winformsReference != null)
-            _Fact(label: 'WinForms ref', value: receipt.winformsReference!),
+            _Fact(label: 'Office entry ref', value: receipt.winformsReference!),
           const SizedBox(height: 4),
           DecoratedBox(
             decoration: BoxDecoration(
@@ -110,7 +110,7 @@ class ReceiptCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
-                'Admin note: ${receipt.adminNote.isEmpty ? '—' : receipt.adminNote}',
+                'Admin note: ${receipt.adminNote.isEmpty ? 'â€”' : receipt.adminNote}',
                 style: theme.textTheme.bodyMedium,
               ),
             ),

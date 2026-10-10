@@ -1,4 +1,4 @@
-import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+﻿import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
@@ -30,7 +30,7 @@ class ReconciliationScreen extends ConsumerWidget {
           title: 'Needs reconciliation',
           subtitle:
               'Financial changes after Entered for ${formatAccountingDate(date)}. '
-              '${BusinessRules.winFormsSafety}',
+              '${BusinessRules.officeEntrySafety}',
         ),
         const SizedBox(height: 12),
         summaryAsync.when(
@@ -137,7 +137,7 @@ class ReconciliationScreen extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mark WinForms correction completed?'),
+        title: const Text('Mark office entry correction completed?'),
         content: TextField(
           controller: noteController,
           decoration: const InputDecoration(
@@ -225,7 +225,7 @@ class _CaseCard extends ConsumerWidget {
           Text(caseRecord.reason),
           const SizedBox(height: 8),
           Text(
-            'Opened ${formatAccountingDate(caseRecord.openedAt)} · '
+            'Opened ${formatAccountingDate(caseRecord.openedAt)} Â· '
             'Status: ${caseRecord.status.storageValue}',
             style: theme.textTheme.bodySmall,
           ),
@@ -233,7 +233,7 @@ class _CaseCard extends ConsumerWidget {
               caseRecord.correctedAmount != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Previous: ${formatPkr(caseRecord.previousAmount ?? 0)} → '
+              'Previous: ${formatPkr(caseRecord.previousAmount ?? 0)} â†’ '
               'Corrected: ${formatPkr(caseRecord.correctedAmount ?? 0)}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -244,7 +244,7 @@ class _CaseCard extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '${diff.label}: ${diff.oldValue ?? '—'} → ${diff.newValue ?? '—'}',
+                '${diff.label}: ${diff.oldValue ?? 'â€”'} â†’ ${diff.newValue ?? 'â€”'}',
               ),
             ),
           if (caseRecord.correctionNotes != null) ...[
