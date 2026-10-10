@@ -352,8 +352,17 @@ class ReceiptVisionService {
       } on GroqFailure catch (failure) {
         lastFailure = failure;
         await _configs.recordError(id: config.id, status: failure.kind.name);
-        if (!failure.retryableWithNextKey) {
+        // Never rotate keys to evade OTPM / output-token budget errors.
+        if (failure.kind == GroqFailureKind.outputTokenLimit ||
+            !failure.retryableWithNextKey) {
           rethrow;
+        }
+        // Respect Retry-After for temporary rate limits (bounded wait).
+        final wait = failure.retryAfter;
+        if (wait != null &&
+            wait > Duration.zero &&
+            wait <= const Duration(seconds: 20)) {
+          await Future<void>.delayed(wait);
         }
       }
     }

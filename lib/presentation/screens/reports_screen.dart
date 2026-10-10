@@ -1,12 +1,13 @@
 import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
-// selectableOfficeAccountsProvider is exported from app_providers.dart
 import 'package:ai_bank_receipt_manager/application/reports/report_export_service.dart';
 import 'package:ai_bank_receipt_manager/application/reports/report_models.dart';
 import 'package:ai_bank_receipt_manager/application/reports/report_query_service.dart';
+import 'package:ai_bank_receipt_manager/application/reports/report_save_service.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/domain/rules/business_rules.dart';
+import 'package:ai_bank_receipt_manager/presentation/screens/save_report_dialog.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/page_scroll.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/section_header.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/surface_card.dart';
@@ -23,6 +24,23 @@ final reportExportServiceProvider = FutureProvider<ReportExportService>((
   final dealers = await ref.watch(dealerRepositoryProvider.future);
   return ReportExportService(
     paths: paths,
+    query: ReportQueryService(
+      receipts: receipts,
+      offices: offices,
+      customers: customers,
+      dealers: dealers,
+    ),
+  );
+});
+
+final reportSaveServiceProvider = FutureProvider<ReportSaveService>((
+  ref,
+) async {
+  final receipts = await ref.watch(receiptRepositoryProvider.future);
+  final offices = await ref.watch(officeAccountRepositoryProvider.future);
+  final customers = await ref.watch(customerRepositoryProvider.future);
+  final dealers = await ref.watch(dealerRepositoryProvider.future);
+  return ReportSaveService(
     query: ReportQueryService(
       receipts: receipts,
       offices: offices,
@@ -219,9 +237,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     label: const Text('Preview counts'),
                   ),
                   FilledButton.tonalIcon(
-                    onPressed: _busy
-                        ? null
-                        : () => _export(selectedDate, share: false),
+                    onPressed: _busy ? null : () => _saveReport(selectedDate),
                     icon: const Icon(Icons.save_alt),
                     label: const Text('Save to device'),
                   ),
@@ -352,6 +368,61 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
+  Future<void> _saveReport(DateTime selectedDate) async {
+    if (_format == ReportFormat.xlsx) {
+      await _export(selectedDate, share: false);
+      return;
+    }
+
+    final mode = await showSaveReportDialog(context);
+    if (mode == null || !mounted) {
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final service = await ref.read(reportSaveServiceProvider.future);
+      final outcome = await service.save(
+        criteria: _criteria(selectedDate),
+        mode: mode,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _preview = outcome.document;
+        _lastPath =
+            outcome.pdfPath ??
+            (outcome.galleryFileNames.isEmpty
+                ? null
+                : '${outcome.galleryPagesSaved} Gallery page(s)');
+      });
+      final messenger = ScaffoldMessenger.of(context);
+      if (outcome.pdfCancelled && !outcome.anySucceeded) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Save cancelled. Nothing was written.')),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(content: Text(outcome.summaryMessage())),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to save the report. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   Future<void> _export(DateTime selectedDate, {required bool share}) async {
     setState(() => _busy = true);
     try {
@@ -385,9 +456,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to export the report. Please try again.'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _busy = false);

@@ -292,7 +292,7 @@ class GroqSettingsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(failure.message)));
+        ).showSnackBar(SnackBar(content: Text(failure.userFacingMessage)));
       }
     } catch (error) {
       if (context.mounted) {

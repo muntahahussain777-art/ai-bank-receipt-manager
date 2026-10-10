@@ -23,29 +23,34 @@ class GroqVisionClient {
     required String endpoint,
     required String model,
   }) async {
+    final profile = GroqConstants.profileForModel(model);
     final uri = Uri.parse(
       '${_trimSlash(endpoint)}${GroqConstants.chatCompletionsPath}',
     );
-    final response = await _send(
-      uri: uri,
-      apiKey: apiKey,
-      body: {
-        'model': model,
-        'messages': [
-          {
-            'role': 'user',
-            'content':
-                'Reply with a JSON object containing a single boolean field '
-                'ok set to true.',
-          },
-        ],
-        'temperature': 0,
-        'max_completion_tokens': 64,
-        'response_format': {'type': 'json_object'},
-      },
-    );
+    final body = <String, Object?>{
+      'model': model,
+      'messages': [
+        {
+          'role': 'user',
+          'content':
+              'Reply with a JSON object containing a single boolean field '
+              'ok set to true.',
+        },
+      ],
+      'temperature': 0,
+      'max_completion_tokens': 64,
+      'response_format': {'type': 'json_object'},
+    };
+    if (profile.reasoningEffort != null) {
+      body['reasoning_effort'] = profile.reasoningEffort;
+    }
+    final response = await _send(uri: uri, apiKey: apiKey, body: body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw GroqFailure.fromHttpStatus(response.statusCode, response.body);
+      throw GroqFailure.fromHttpStatus(
+        response.statusCode,
+        response.body,
+        headers: response.headers,
+      );
     }
   }
 
@@ -56,6 +61,7 @@ class GroqVisionClient {
     required Uint8List imageBytes,
     required String mimeType,
     String? configId,
+    int? maxCompletionTokensOverride,
   }) async {
     if (imageBytes.lengthInBytes > GroqConstants.maxImageBytes) {
       throw const GroqFailure(
@@ -64,33 +70,41 @@ class GroqVisionClient {
       );
     }
 
+    final profile = GroqConstants.profileForModel(model);
+    final maxTokens =
+        maxCompletionTokensOverride ?? profile.maxCompletionTokens;
     final uri = Uri.parse(
       '${_trimSlash(endpoint)}${GroqConstants.chatCompletionsPath}',
     );
     final dataUrl = 'data:$mimeType;base64,${base64Encode(imageBytes)}';
 
+    final body = <String, Object?>{
+      'model': model,
+      'messages': [
+        {'role': 'system', 'content': GroqConstants.extractionSystemPrompt},
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': GroqConstants.extractionUserPrompt},
+            {
+              'type': 'image_url',
+              'image_url': {'url': dataUrl},
+            },
+          ],
+        },
+      ],
+      'temperature': 0,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+    };
+    if (profile.reasoningEffort != null) {
+      body['reasoning_effort'] = profile.reasoningEffort;
+    }
+
     final response = await _send(
       uri: uri,
       apiKey: apiKey,
-      body: {
-        'model': model,
-        'messages': [
-          {'role': 'system', 'content': GroqConstants.extractionSystemPrompt},
-          {
-            'role': 'user',
-            'content': [
-              {'type': 'text', 'text': GroqConstants.extractionUserPrompt},
-              {
-                'type': 'image_url',
-                'image_url': {'url': dataUrl},
-              },
-            ],
-          },
-        ],
-        'temperature': 0,
-        'max_completion_tokens': 2048,
-        'response_format': {'type': 'json_object'},
-      },
+      body: body,
       configId: configId,
     );
 
@@ -99,6 +113,7 @@ class GroqVisionClient {
         response.statusCode,
         response.body,
         configId: configId,
+        headers: response.headers,
       );
     }
 
@@ -211,6 +226,21 @@ class GroqVisionClient {
     final content = message['content'];
     if (content is String) {
       return content;
+    }
+    // Some models return content as a list of parts.
+    if (content is List) {
+      final buffer = StringBuffer();
+      for (final part in content) {
+        if (part is Map && part['text'] is String) {
+          buffer.write(part['text']);
+        } else if (part is String) {
+          buffer.write(part);
+        }
+      }
+      final joined = buffer.toString();
+      if (joined.isNotEmpty) {
+        return joined;
+      }
     }
     throw const GroqFailure(
       kind: GroqFailureKind.malformedResponse,

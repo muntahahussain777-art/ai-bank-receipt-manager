@@ -340,15 +340,15 @@ class _ImportReceiptsScreenState extends ConsumerState<ImportReceiptsScreen> {
       invalidateDeskProviders(ref);
       setState(() {
         _status =
-            'Batch done â€” success ${refreshed?.successCount ?? 0}, '
+            'Batch done — success ${refreshed?.successCount ?? 0}, '
             'failed ${refreshed?.failedCount ?? 0}, '
             'duplicates ${refreshed?.duplicateCount ?? 0}, '
             'pending ${refreshed?.pendingReviewCount ?? 0}.';
       });
     } on GroqFailure catch (failure) {
-      setState(() => _status = failure.message);
+      setState(() => _status = failure.userFacingMessage);
     } catch (error) {
-      setState(() => _status = '$error');
+      setState(() => _status = 'Unable to finish import. Please try again.');
     } finally {
       if (mounted) {
         setState(() => _busy = false);

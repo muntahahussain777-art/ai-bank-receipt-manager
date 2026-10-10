@@ -253,8 +253,11 @@ class _ReceiptProcessingDialogState
     }
     final suggestedCustomer = _classification?.suggestedCustomerName;
 
+    final media = MediaQuery.of(context);
+    final maxHeight = media.size.height * 0.72;
     return AlertDialog(
       title: Text(widget.title),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       content: SizedBox(
         width: 520,
         child: _loading
@@ -262,187 +265,194 @@ class _ReceiptProcessingDialogState
                 height: 120,
                 child: Center(child: CircularProgressIndicator()),
               )
-            : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (widget.failure != null)
-                      NoticePanel(
-                        message:
-                            'AI extraction failed: ${widget.failure!.message}. '
-                            'Image is preserved — enter fields manually.',
-                        icon: Icons.warning_amber_outlined,
-                        foreground: theme.colorScheme.onErrorContainer,
-                        background: theme.colorScheme.errorContainer,
-                      ),
-                    if (_error != null)
-                      Text(
-                        _error!,
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                    const SizedBox(height: 8),
-                    if (widget.imagePath.isNotEmpty &&
-                        File(widget.imagePath).existsSync())
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(widget.imagePath),
-                          height: 140,
-                          fit: BoxFit.cover,
+            : ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.failure != null)
+                        NoticePanel(
+                          message:
+                              '${widget.failure!.userFacingMessage} '
+                              'Original screenshot is preserved for manual entry.',
+                          icon: Icons.warning_amber_outlined,
+                          foreground: theme.colorScheme.onErrorContainer,
+                          background: theme.colorScheme.errorContainer,
                         ),
-                      ),
-                    const SizedBox(height: 12),
-                    Text('Bank identities', style: theme.textTheme.titleSmall),
-                    Text(
-                      'These are the names printed on the bank receipt — '
-                      'separate from the accounting customer.',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 8),
-                    _field(_bank, 'Bank name'),
-                    _field(_sender, 'Bank sender'),
-                    _field(_receiver, 'Bank receiver'),
-                    _field(_amount, 'Amount', keyboard: TextInputType.number),
-                    if (amount != null)
-                      Text(
-                        formatPkr(amount),
-                        style: theme.textTheme.titleMedium,
-                      ),
-                    _field(_currency, 'Currency'),
-                    _field(_reference, 'Transaction reference'),
-                    _field(_dateTime, 'Transaction date/time'),
-                    const SizedBox(height: 8),
-                    Text('WhatsApp', style: theme.textTheme.titleSmall),
-                    _field(_whatsapp, 'WhatsApp sender (forwarder)'),
-                    _field(_admin, 'WhatsApp admin note'),
-                    TextButton(
-                      onPressed: _reclassifyFromFields,
-                      child: const Text('Re-match office / parties'),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Accounting attribution',
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    Text(
-                      'Office: ${officeName ?? 'Unassigned'} · '
-                      'Direction: ${_directionLabel(_direction)} · '
-                      'Status: Pending',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (suggestedCustomer != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Suggested customer: $suggestedCustomer'
-                        '${_classification?.customerConfirmationRequired == true ? ' — confirmation required' : ''}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.primary,
+                      if (_error != null)
+                        Text(
+                          _error!,
+                          style: TextStyle(color: theme.colorScheme.error),
                         ),
-                      ),
-                    ],
-                    if (_classification != null) ...[
-                      for (final reason in _classification!.reasons.take(4))
-                        Text('• $reason', style: theme.textTheme.bodySmall),
-                    ],
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String?>(
-                      // ignore: deprecated_member_use
-                      value: _officeId,
-                      decoration: const InputDecoration(
-                        labelText: 'Office account',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('Unassigned'),
-                        ),
-                        for (final o in _offices)
-                          DropdownMenuItem(
-                            value: o.id,
-                            child: Text(o.displayName),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _officeId = v),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<DbReceiptType>(
-                      // ignore: deprecated_member_use
-                      value: _direction,
-                      decoration: const InputDecoration(
-                        labelText: 'Direction',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: DbReceiptType.received,
-                          child: Text('Incoming'),
-                        ),
-                        DropdownMenuItem(
-                          value: DbReceiptType.sent,
-                          child: Text('Outgoing'),
-                        ),
-                        DropdownMenuItem(
-                          value: DbReceiptType.unknown,
-                          child: Text('Unknown'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() => _direction = v);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String?>(
-                      // ignore: deprecated_member_use
-                      value: _customerId,
-                      decoration: InputDecoration(
-                        labelText:
-                            customerName == null && suggestedCustomer != null
-                            ? 'Customer (suggested: $suggestedCustomer)'
-                            : 'Related customer',
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('None — select later'),
-                        ),
-                        for (final c in _customers)
-                          DropdownMenuItem(value: c.id, child: Text(c.name)),
-                      ],
-                      onChanged: (v) => setState(() => _customerId = v),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String?>(
-                      // ignore: deprecated_member_use
-                      value: _dealerId,
-                      decoration: const InputDecoration(
-                        labelText: 'Related dealer',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('None'),
-                        ),
-                        for (final d in _dealers)
-                          DropdownMenuItem(value: d.id, child: Text(d.name)),
-                      ],
-                      onChanged: (v) => setState(() => _dealerId = v),
-                    ),
-                    if (widget.initial.overallConfidence != null) ...[
                       const SizedBox(height: 8),
+                      if (widget.imagePath.isNotEmpty &&
+                          File(widget.imagePath).existsSync())
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(widget.imagePath),
+                            height: 140,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      const SizedBox(height: 12),
                       Text(
-                        'AI confidence: '
-                        '${(widget.initial.overallConfidence! * 100).toStringAsFixed(0)}%',
+                        'Bank identities',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      Text(
+                        'These are the names printed on the bank receipt — '
+                        'separate from the accounting customer.',
                         style: theme.textTheme.bodySmall,
                       ),
+                      const SizedBox(height: 8),
+                      _field(_bank, 'Bank name'),
+                      _field(_sender, 'Bank sender'),
+                      _field(_receiver, 'Bank receiver'),
+                      _field(_amount, 'Amount', keyboard: TextInputType.number),
+                      if (amount != null)
+                        Text(
+                          formatPkr(amount),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      _field(_currency, 'Currency'),
+                      _field(_reference, 'Transaction reference'),
+                      _field(_dateTime, 'Transaction date/time'),
+                      const SizedBox(height: 8),
+                      Text('WhatsApp', style: theme.textTheme.titleSmall),
+                      _field(_whatsapp, 'WhatsApp sender (forwarder)'),
+                      _field(_admin, 'WhatsApp admin note'),
+                      TextButton(
+                        onPressed: _reclassifyFromFields,
+                        child: const Text('Re-match office / parties'),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Accounting attribution',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      Text(
+                        'Office: ${officeName ?? 'Unassigned'} · '
+                        'Direction: ${_directionLabel(_direction)} · '
+                        'Status: Pending',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (suggestedCustomer != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Suggested customer: $suggestedCustomer'
+                          '${_classification?.customerConfirmationRequired == true ? ' — confirmation required' : ''}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                      if (_classification != null) ...[
+                        for (final reason in _classification!.reasons.take(4))
+                          Text('• $reason', style: theme.textTheme.bodySmall),
+                      ],
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String?>(
+                        // ignore: deprecated_member_use
+                        value: _officeId,
+                        decoration: const InputDecoration(
+                          labelText: 'Office account',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Unassigned'),
+                          ),
+                          for (final o in _offices)
+                            DropdownMenuItem(
+                              value: o.id,
+                              child: Text(o.displayName),
+                            ),
+                        ],
+                        onChanged: (v) => setState(() => _officeId = v),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<DbReceiptType>(
+                        // ignore: deprecated_member_use
+                        value: _direction,
+                        decoration: const InputDecoration(
+                          labelText: 'Direction',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: DbReceiptType.received,
+                            child: Text('Incoming'),
+                          ),
+                          DropdownMenuItem(
+                            value: DbReceiptType.sent,
+                            child: Text('Outgoing'),
+                          ),
+                          DropdownMenuItem(
+                            value: DbReceiptType.unknown,
+                            child: Text('Unknown'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() => _direction = v);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String?>(
+                        // ignore: deprecated_member_use
+                        value: _customerId,
+                        decoration: InputDecoration(
+                          labelText:
+                              customerName == null && suggestedCustomer != null
+                              ? 'Customer (suggested: $suggestedCustomer)'
+                              : 'Related customer',
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('None — select later'),
+                          ),
+                          for (final c in _customers)
+                            DropdownMenuItem(value: c.id, child: Text(c.name)),
+                        ],
+                        onChanged: (v) => setState(() => _customerId = v),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String?>(
+                        // ignore: deprecated_member_use
+                        value: _dealerId,
+                        decoration: const InputDecoration(
+                          labelText: 'Related dealer',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          for (final d in _dealers)
+                            DropdownMenuItem(value: d.id, child: Text(d.name)),
+                        ],
+                        onChanged: (v) => setState(() => _dealerId = v),
+                      ),
+                      if (widget.initial.overallConfidence != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'AI confidence: '
+                          '${(widget.initial.overallConfidence! * 100).toStringAsFixed(0)}%',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
       ),
