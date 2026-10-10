@@ -1,3 +1,4 @@
+import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
 import 'package:ai_bank_receipt_manager/domain/enums/office_account.dart';
 
 class ReconciliationPreview {
@@ -9,6 +10,10 @@ class ReconciliationPreview {
     required this.newParty,
     required this.oldOfficeAccount,
     required this.newOfficeAccount,
+    this.fieldDiffs = const [],
+    this.winFormsMessage =
+        'WinForms may require a manual correction. This app never changes '
+        'WinForms. Confirm only after you understand the difference.',
   });
 
   final String reference;
@@ -18,4 +23,6 @@ class ReconciliationPreview {
   final String newParty;
   final OfficeAccount oldOfficeAccount;
   final OfficeAccount newOfficeAccount;
+  final List<FinancialFieldDiff> fieldDiffs;
+  final String winFormsMessage;
 }

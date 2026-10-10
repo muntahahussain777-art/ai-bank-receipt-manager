@@ -121,6 +121,12 @@ Future<void> _pumpApp(WidgetTester tester, Size size) async {
         storedReceiptCountsByMonthProvider.overrideWith(
           (ref) async => <DateTime, int>{},
         ),
+        openReconciliationCasesProvider.overrideWith(
+          (ref) async => <ReconciliationCaseRecord>[],
+        ),
+        openReconciliationSummaryProvider.overrideWith(
+          (ref) async => (count: 0, affectedAmount: 0.0),
+        ),
       ],
       child: const AiBankReceiptApp(),
     ),

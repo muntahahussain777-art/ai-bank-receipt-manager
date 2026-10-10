@@ -7,18 +7,27 @@ import 'package:flutter/material.dart';
 Future<bool> showReconciliationDialog(
   BuildContext context, {
   required ReconciliationPreview preview,
+  String confirmLabel = 'Confirm correction',
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => ReconciliationDialog(preview: preview),
+    builder: (context) => ReconciliationDialog(
+      preview: preview,
+      confirmLabel: confirmLabel,
+    ),
   );
   return result ?? false;
 }
 
 class ReconciliationDialog extends StatelessWidget {
-  const ReconciliationDialog({required this.preview, super.key});
+  const ReconciliationDialog({
+    required this.preview,
+    this.confirmLabel = 'Confirm correction',
+    super.key,
+  });
 
   final ReconciliationPreview preview;
+  final String confirmLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -33,18 +42,30 @@ class ReconciliationDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Reference ${preview.reference}. The financial values prepared '
-                'for manual entry do not match the values now on screen.',
+                'Reference ${preview.reference}. This receipt was previously '
+                'Entered. Financial values changed and WinForms may still '
+                'show the old figures.',
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
-              Text('Old financial values', style: theme.textTheme.titleSmall),
+              Text('Previous amount', style: theme.textTheme.titleSmall),
               const SizedBox(height: 8),
               _ValueLine(
                 key: const Key('reconciliation-old-amount'),
                 label: 'Amount',
                 value: formatPkr(preview.oldAmount),
               ),
+              const SizedBox(height: 12),
+              Text('Corrected amount', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              _ValueLine(
+                key: const Key('reconciliation-new-amount'),
+                label: 'Amount',
+                value: formatPkr(preview.newAmount),
+              ),
+              const SizedBox(height: 16),
+              Text('Old financial values', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
               _ValueLine(label: 'Customer / dealer', value: preview.oldParty),
               _ValueLine(
                 label: 'Office account',
@@ -53,24 +74,27 @@ class ReconciliationDialog extends StatelessWidget {
               const SizedBox(height: 16),
               Text('New financial values', style: theme.textTheme.titleSmall),
               const SizedBox(height: 8),
-              _ValueLine(
-                key: const Key('reconciliation-new-amount'),
-                label: 'Amount',
-                value: formatPkr(preview.newAmount),
-              ),
               _ValueLine(label: 'Customer / dealer', value: preview.newParty),
               _ValueLine(
                 label: 'Office account',
                 value: preview.newOfficeAccount.displayLabel,
               ),
+              if (preview.fieldDiffs.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text('Changed fields', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 8),
+                for (final diff in preview.fieldDiffs)
+                  _ValueLine(
+                    label: diff.label,
+                    value: '${diff.oldValue ?? '—'} → ${diff.newValue ?? '—'}',
+                  ),
+              ],
               const SizedBox(height: 16),
               Text('WinForms correction', style: theme.textTheme.titleSmall),
               const SizedBox(height: 8),
               Text(
-                'Enter the corrected amount, party, and office account '
-                'manually in WinForms. ${BusinessRules.winFormsSafety} '
-                'Confirm only means you have reviewed the difference. '
-                'It does not save a record in Phase 1.',
+                '${preview.winFormsMessage} ${BusinessRules.winFormsSafety} '
+                'Cancel leaves the receipt unchanged.',
                 style: theme.textTheme.bodyMedium,
               ),
             ],
@@ -86,7 +110,7 @@ class ReconciliationDialog extends StatelessWidget {
         FilledButton(
           key: const Key('reconciliation-confirm'),
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Confirm'),
+          child: Text(confirmLabel),
         ),
       ],
     );

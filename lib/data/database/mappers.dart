@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:ai_bank_receipt_manager/data/models/db_enums.dart';
 import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
 
@@ -71,6 +73,9 @@ abstract final class ReceiptMapper {
       'prior_amount': record.priorAmount,
       'prior_party_name': record.priorPartyName,
       'prior_account_id': record.priorAccountId,
+      'reconciliation_completed_at': record.reconciliationCompletedAt == null
+          ? null
+          : encodeDateTime(record.reconciliationCompletedAt!),
       'notes': record.notes,
       'created_at': encodeDateTime(record.createdAt),
       'updated_at': encodeDateTime(record.updatedAt),
@@ -116,11 +121,62 @@ abstract final class ReceiptMapper {
       priorAmount: (map['prior_amount'] as num?)?.toDouble(),
       priorPartyName: map['prior_party_name'] as String?,
       priorAccountId: map['prior_account_id'] as String?,
+      reconciliationCompletedAt: decodeDateTimeOrNull(
+        map['reconciliation_completed_at'] as String?,
+      ),
       notes: map['notes'] as String?,
       createdAt: decodeDateTime(map['created_at']! as String),
       updatedAt: decodeDateTime(map['updated_at']! as String),
       deletedAt: decodeDateTimeOrNull(map['deleted_at'] as String?),
       importBatchId: map['import_batch_id'] as String?,
+    );
+  }
+}
+
+abstract final class ReconciliationCaseMapper {
+  static Map<String, Object?> toMap(ReconciliationCaseRecord record) => {
+    'id': record.id,
+    'receipt_id': record.receiptId,
+    'status': record.status.storageValue,
+    'kind': record.kind.storageValue,
+    'reason': record.reason,
+    'correction_notes': record.correctionNotes,
+    'diffs_json': jsonEncode([
+      for (final diff in record.diffs) diff.toJson(),
+    ]),
+    'previous_amount': record.previousAmount,
+    'corrected_amount': record.correctedAmount,
+    'opened_at': encodeDateTime(record.openedAt),
+    'opened_by': record.openedBy,
+    'completed_at': record.completedAt == null
+        ? null
+        : encodeDateTime(record.completedAt!),
+    'completed_by': record.completedBy,
+    'created_at': encodeDateTime(record.createdAt),
+  };
+
+  static ReconciliationCaseRecord fromMap(Map<String, Object?> map) {
+    final raw = jsonDecode(map['diffs_json']! as String) as List<dynamic>;
+    return ReconciliationCaseRecord(
+      id: map['id']! as String,
+      receiptId: map['receipt_id']! as String,
+      status: ReconciliationCaseStatusCodec.parse(map['status'] as String?),
+      kind: ReconciliationCaseKindCodec.parse(map['kind'] as String?),
+      reason: map['reason']! as String,
+      correctionNotes: map['correction_notes'] as String?,
+      diffs: [
+        for (final item in raw)
+          FinancialFieldDiff.fromJson(
+            Map<String, Object?>.from(item as Map),
+          ),
+      ],
+      previousAmount: (map['previous_amount'] as num?)?.toDouble(),
+      correctedAmount: (map['corrected_amount'] as num?)?.toDouble(),
+      openedAt: decodeDateTime(map['opened_at']! as String),
+      openedBy: map['opened_by'] as String?,
+      completedAt: decodeDateTimeOrNull(map['completed_at'] as String?),
+      completedBy: map['completed_by'] as String?,
+      createdAt: decodeDateTime(map['created_at']! as String),
     );
   }
 }

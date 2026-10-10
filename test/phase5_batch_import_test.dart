@@ -123,7 +123,7 @@ void main() {
   }
 
   test('schema v4 has import queue table', () async {
-    expect(DbSchema.version, 5);
+    expect(DbSchema.version, 6);
     final db = await harness.database.database;
     final info = await db.rawQuery(
       'PRAGMA table_info(${DbSchema.importQueueItems})',

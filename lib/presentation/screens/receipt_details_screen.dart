@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:ai_bank_receipt_manager/application/providers/database_providers.dart';
 import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/application/reconciliation/build_reconciliation_preview.dart';
+import 'package:ai_bank_receipt_manager/application/reconciliation/financial_change_detector.dart';
+import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/core/theme/app_theme.dart';
@@ -233,7 +235,13 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
           FilledButton.tonalIcon(
             onPressed: () => _confirmReconciliation(receipt),
             icon: const Icon(Icons.rule),
-            label: const Text('Confirm reviewed'),
+            label: const Text('Reconciliation Completed'),
+          ),
+        if (receipt.status == EntryStatus.needsReconciliation)
+          OutlinedButton.icon(
+            onPressed: () => _showAuditHistory(receipt),
+            icon: const Icon(Icons.history),
+            label: const Text('Audit history'),
           ),
         TextButton.icon(
           onPressed: () => _moveDate(receipt),
@@ -299,7 +307,7 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
                 child: const Text('Save'),
               ),
               TextButton(
-                onPressed: () => setState(() => _editing = false),
+                onPressed: () => _cancelEdit(receipt),
                 child: const Text('Cancel'),
               ),
             ],
@@ -307,6 +315,15 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
         ],
       ),
     );
+  }
+
+  void _cancelEdit(Receipt receipt) {
+    _controllersReady = false;
+    _hydrate(receipt);
+    setState(() {
+      _editing = false;
+      _amountError = null;
+    });
   }
 
   Future<void> _saveEdit(Receipt receipt) async {
@@ -317,34 +334,54 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
     }
     setState(() => _amountError = null);
 
-    final financialChanged =
-        (receipt.amount - parsed).abs() >= 0.0001 ||
-        _reference.text.trim() !=
-            (receipt.reference == '(no reference)' ? '' : receipt.reference);
+    final newParty =
+        _party.text.trim().isEmpty ? receipt.partyName : _party.text.trim();
+    final newRef = _reference.text.trim().isEmpty
+        ? null
+        : _reference.text.trim();
+    final oldRef = receipt.reference == '(no reference)'
+        ? null
+        : receipt.reference;
 
-    if (receipt.entryStatusEntered && financialChanged) {
+    final service = await ref.read(receiptEntryServiceProvider.future);
+    final diffs = await service.previewFinancialEdit(
+      id: receipt.id,
+      patch: ReceiptFinancialPatch(
+        amount: parsed,
+        transactionId: newRef,
+        clearTransactionId: newRef == null && oldRef != null,
+        adminMessage: _admin.text.trim(),
+        partyDisplayName: newParty,
+      ),
+    );
+
+    var confirmed = true;
+    if (receipt.entryStatusEntered && diffs.isNotEmpty) {
       final preview = buildReconciliationPreview(
         receipt: receipt,
         newAmount: parsed,
-        newParty: _party.text.trim().isEmpty ? receipt.partyName : _party.text,
+        newParty: newParty,
         newOfficeAccount: receipt.officeAccount,
+        fieldDiffs: diffs,
       );
-      final confirmed = await showReconciliationDialog(context, preview: preview);
+      if (!mounted) {
+        return;
+      }
+      confirmed = await showReconciliationDialog(context, preview: preview);
       if (!confirmed || !mounted) {
         return;
       }
     }
 
-    final service = await ref.read(receiptEntryServiceProvider.future);
     await service.applyFinancialEdit(
       id: receipt.id,
       newAmount: parsed,
-      newPartyName: _party.text.trim(),
+      newPartyName: newParty,
       newAdminMessage: _admin.text.trim(),
-      newTransactionId: _reference.text.trim().isEmpty
-          ? null
-          : _reference.text.trim(),
+      newTransactionId: newRef,
+      clearTransactionId: newRef == null && oldRef != null,
       changedBy: 'desk',
+      userConfirmedReconciliation: confirmed && diffs.isNotEmpty,
     );
     _controllersReady = false;
     setState(() => _editing = false);
@@ -414,7 +451,11 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
       newParty: receipt.partyName,
       newOfficeAccount: receipt.officeAccount,
     );
-    final confirmed = await showReconciliationDialog(context, preview: preview);
+    final confirmed = await showReconciliationDialog(
+      context,
+      preview: preview,
+      confirmLabel: 'Reconciliation Completed',
+    );
     if (!confirmed) {
       return;
     }
@@ -427,6 +468,57 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
     ref.invalidate(storedReceiptByIdProvider(widget.receiptId));
   }
 
+  Future<void> _showAuditHistory(Receipt receipt) async {
+    final repo = await ref.read(receiptRepositoryProvider.future);
+    final audits = await repo.listAuditHistory(receipt.id);
+    final cases = await repo.listReconciliationCases(receipt.id);
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Audit history'),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Reconciliation cases: ${cases.length}'),
+                for (final c in cases)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '${c.kind.storageValue} · ${c.status.storageValue}\n'
+                      '${c.reason}'
+                      '${c.correctionNotes == null ? '' : '\nNotes: ${c.correctionNotes}'}',
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Text('Field audits: ${audits.length}'),
+                for (final a in audits)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      '${a.fieldName}: ${a.oldValue ?? '—'} → ${a.newValue ?? '—'}'
+                      '${a.reason == null ? '' : '\n${a.reason}'}',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _moveDate(Receipt receipt) async {
     final picked = await showDatePicker(
       context: context,
@@ -437,12 +529,43 @@ class _ReceiptDetailsScreenState extends ConsumerState<ReceiptDetailsScreen> {
     if (picked == null) {
       return;
     }
-    final repo = await ref.read(receiptRepositoryProvider.future);
-    await repo.moveAccountingDate(
-      id: receipt.id,
-      newAccountingDate: picked,
-      changedBy: 'desk',
-    );
+    final service = await ref.read(receiptEntryServiceProvider.future);
+    if (receipt.entryStatusEntered) {
+      final diffs = await service.previewFinancialEdit(
+        id: receipt.id,
+        patch: ReceiptFinancialPatch(accountingDate: picked),
+      );
+      final preview = buildReconciliationPreview(
+        receipt: receipt,
+        newAmount: receipt.amount,
+        newParty: receipt.partyName,
+        newOfficeAccount: receipt.officeAccount,
+        fieldDiffs: diffs,
+      );
+      if (!mounted) {
+        return;
+      }
+      final confirmed = await showReconciliationDialog(
+        context,
+        preview: preview,
+      );
+      if (!confirmed || !mounted) {
+        return;
+      }
+      await service.applyFinancialEdit(
+        id: receipt.id,
+        newAccountingDate: picked,
+        changedBy: 'desk',
+        userConfirmedReconciliation: true,
+      );
+    } else {
+      final repo = await ref.read(receiptRepositoryProvider.future);
+      await repo.moveAccountingDate(
+        id: receipt.id,
+        newAccountingDate: picked,
+        changedBy: 'desk',
+      );
+    }
     invalidateDeskProviders(ref);
     ref.invalidate(storedReceiptByIdProvider(widget.receiptId));
   }

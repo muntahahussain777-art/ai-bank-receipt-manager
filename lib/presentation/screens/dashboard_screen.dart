@@ -1,8 +1,10 @@
 import 'package:ai_bank_receipt_manager/application/providers/app_providers.dart';
+import 'package:ai_bank_receipt_manager/application/providers/desk_providers.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/date_format.dart';
 import 'package:ai_bank_receipt_manager/core/formatting/money_format.dart';
 import 'package:ai_bank_receipt_manager/core/theme/app_theme.dart';
 import 'package:ai_bank_receipt_manager/data/models/office_account_models.dart';
+import 'package:ai_bank_receipt_manager/data/models/persistence_models.dart';
 import 'package:ai_bank_receipt_manager/domain/rules/business_rules.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/metric_card.dart';
 import 'package:ai_bank_receipt_manager/shared/widgets/notice_panel.dart';
@@ -87,6 +89,78 @@ class DashboardScreen extends ConsumerWidget {
           error: (error, _) => Text('Office accounts unavailable: $error'),
           data: (_) =>
               _AccountActivityList(activities: summary.accountActivities),
+        ),
+        const SizedBox(height: 20),
+        SectionHeader(
+          title: 'Reconciliation required',
+          subtitle:
+              'Open cases with original vs corrected values. '
+              'Complete only after WinForms is corrected by hand.',
+        ),
+        const SizedBox(height: 12),
+        Consumer(
+          builder: (context, ref, _) {
+            final casesAsync = ref.watch(openReconciliationCasesProvider);
+            final reconSummary = ref.watch(openReconciliationSummaryProvider);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                reconSummary.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
+                  data: (s) => Text(
+                    '${s.count} open · affected ${formatPkr(s.affectedAmount)}',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                casesAsync.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) => Text('$e'),
+                  data: (cases) {
+                    if (cases.isEmpty) {
+                      return const Text('No open reconciliation cases.');
+                    }
+                    return Column(
+                      children: [
+                        for (final c in cases) ...[
+                          SurfaceCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  c.reason,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Previous ${formatPkr(c.previousAmount ?? 0)} → '
+                                  'Corrected ${formatPkr(c.correctedAmount ?? 0)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  'Opened ${formatAccountingDate(c.openedAt)} · '
+                                  '${c.status.storageValue}',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        TextButton(
+                          onPressed: () => context.go('/reconciliation'),
+                          child: const Text('Open reconciliation desk'),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 20),
         SectionHeader(

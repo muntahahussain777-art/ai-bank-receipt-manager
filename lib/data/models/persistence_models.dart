@@ -31,6 +31,7 @@ class ReceiptRecord {
     this.priorAmount,
     this.priorPartyName,
     this.priorAccountId,
+    this.reconciliationCompletedAt,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -67,6 +68,7 @@ class ReceiptRecord {
   final double? priorAmount;
   final String? priorPartyName;
   final String? priorAccountId;
+  final DateTime? reconciliationCompletedAt;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -108,6 +110,7 @@ class ReceiptRecord {
     double? priorAmount,
     String? priorPartyName,
     String? priorAccountId,
+    DateTime? reconciliationCompletedAt,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -117,10 +120,17 @@ class ReceiptRecord {
     bool clearEnteredAt = false,
     bool clearEnteredBy = false,
     bool clearWinformsReference = false,
+    bool clearReconciliationCompletedAt = false,
+    bool clearMappedAccountId = false,
+    bool clearCustomerId = false,
+    bool clearDealerId = false,
+    bool clearTransactionId = false,
   }) {
     return ReceiptRecord(
       id: id ?? this.id,
-      transactionId: transactionId ?? this.transactionId,
+      transactionId: clearTransactionId
+          ? null
+          : (transactionId ?? this.transactionId),
       bankName: bankName ?? this.bankName,
       bankSenderName: bankSenderName ?? this.bankSenderName,
       bankReceiverName: bankReceiverName ?? this.bankReceiverName,
@@ -137,9 +147,11 @@ class ReceiptRecord {
       imageHash: imageHash ?? this.imageHash,
       receiptType: receiptType ?? this.receiptType,
       mappedPartyId: mappedPartyId ?? this.mappedPartyId,
-      mappedAccountId: mappedAccountId ?? this.mappedAccountId,
-      dealerId: dealerId ?? this.dealerId,
-      customerId: customerId ?? this.customerId,
+      mappedAccountId: clearMappedAccountId
+          ? null
+          : (mappedAccountId ?? this.mappedAccountId),
+      dealerId: clearDealerId ? null : (dealerId ?? this.dealerId),
+      customerId: clearCustomerId ? null : (customerId ?? this.customerId),
       confidenceScore: confidenceScore ?? this.confidenceScore,
       reviewStatus: reviewStatus ?? this.reviewStatus,
       entryStatus: entryStatus ?? this.entryStatus,
@@ -151,11 +163,139 @@ class ReceiptRecord {
       priorAmount: priorAmount ?? this.priorAmount,
       priorPartyName: priorPartyName ?? this.priorPartyName,
       priorAccountId: priorAccountId ?? this.priorAccountId,
+      reconciliationCompletedAt: clearReconciliationCompletedAt
+          ? null
+          : (reconciliationCompletedAt ?? this.reconciliationCompletedAt),
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
       importBatchId: importBatchId ?? this.importBatchId,
+    );
+  }
+}
+
+enum ReconciliationCaseStatus { open, completed }
+
+enum ReconciliationCaseKind { financialEdit, deletion, reopen }
+
+extension ReconciliationCaseStatusCodec on ReconciliationCaseStatus {
+  String get storageValue => switch (this) {
+    ReconciliationCaseStatus.open => 'open',
+    ReconciliationCaseStatus.completed => 'completed',
+  };
+
+  static ReconciliationCaseStatus parse(String? value) {
+    return switch (value) {
+      'completed' => ReconciliationCaseStatus.completed,
+      _ => ReconciliationCaseStatus.open,
+    };
+  }
+}
+
+extension ReconciliationCaseKindCodec on ReconciliationCaseKind {
+  String get storageValue => switch (this) {
+    ReconciliationCaseKind.financialEdit => 'financial_edit',
+    ReconciliationCaseKind.deletion => 'deletion',
+    ReconciliationCaseKind.reopen => 'reopen',
+  };
+
+  static ReconciliationCaseKind parse(String? value) {
+    return switch (value) {
+      'deletion' => ReconciliationCaseKind.deletion,
+      'reopen' => ReconciliationCaseKind.reopen,
+      _ => ReconciliationCaseKind.financialEdit,
+    };
+  }
+}
+
+/// Immutable snapshot of one financial field change inside a reconciliation case.
+class FinancialFieldDiff {
+  const FinancialFieldDiff({
+    required this.field,
+    required this.label,
+    this.oldValue,
+    this.newValue,
+  });
+
+  final String field;
+  final String label;
+  final String? oldValue;
+  final String? newValue;
+
+  Map<String, Object?> toJson() => {
+    'field': field,
+    'label': label,
+    'oldValue': oldValue,
+    'newValue': newValue,
+  };
+
+  static FinancialFieldDiff fromJson(Map<String, Object?> json) {
+    return FinancialFieldDiff(
+      field: json['field']! as String,
+      label: json['label']! as String,
+      oldValue: json['oldValue'] as String?,
+      newValue: json['newValue'] as String?,
+    );
+  }
+}
+
+class ReconciliationCaseRecord {
+  const ReconciliationCaseRecord({
+    required this.id,
+    required this.receiptId,
+    required this.status,
+    required this.kind,
+    required this.reason,
+    this.correctionNotes,
+    required this.diffs,
+    this.previousAmount,
+    this.correctedAmount,
+    required this.openedAt,
+    this.openedBy,
+    this.completedAt,
+    this.completedBy,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String receiptId;
+  final ReconciliationCaseStatus status;
+  final ReconciliationCaseKind kind;
+  final String reason;
+  final String? correctionNotes;
+  final List<FinancialFieldDiff> diffs;
+  final double? previousAmount;
+  final double? correctedAmount;
+  final DateTime openedAt;
+  final String? openedBy;
+  final DateTime? completedAt;
+  final String? completedBy;
+  final DateTime createdAt;
+
+  bool get isOpen => status == ReconciliationCaseStatus.open;
+
+  ReconciliationCaseRecord copyWith({
+    ReconciliationCaseStatus? status,
+    String? correctionNotes,
+    DateTime? completedAt,
+    String? completedBy,
+  }) {
+    return ReconciliationCaseRecord(
+      id: id,
+      receiptId: receiptId,
+      status: status ?? this.status,
+      kind: kind,
+      reason: reason,
+      correctionNotes: correctionNotes ?? this.correctionNotes,
+      diffs: diffs,
+      previousAmount: previousAmount,
+      correctedAmount: correctedAmount,
+      openedAt: openedAt,
+      openedBy: openedBy,
+      completedAt: completedAt ?? this.completedAt,
+      completedBy: completedBy ?? this.completedBy,
+      createdAt: createdAt,
     );
   }
 }

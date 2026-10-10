@@ -1,6 +1,6 @@
 abstract final class DbSchema {
   static const databaseName = 'ai_bank_receipt_manager.db';
-  static const version = 5;
+  static const version = 6;
 
   static const receipts = 'receipts';
   static const accountMappings = 'account_mappings';
@@ -15,4 +15,5 @@ abstract final class DbSchema {
   static const importBatches = 'import_batches';
   static const aiExtractions = 'ai_extractions';
   static const importQueueItems = 'import_queue_items';
+  static const reconciliationCases = 'reconciliation_cases';
 }

@@ -284,6 +284,12 @@ class ReceiptRepository {
     if (existing == null) {
       throw StateError('Receipt $id was not found.');
     }
+    if (existing.entryStatus == DbEntryStatus.entered) {
+      throw StateError(
+        'Moving an Entered receipt accounting date requires the '
+        'reconciliation workflow (applyFinancialEdit with confirmation).',
+      );
+    }
     return updateReceipt(
       updated: existing.copyWith(
         accountingDate: dateOnlyUtc(newAccountingDate),
@@ -291,6 +297,421 @@ class ReceiptRepository {
       changedBy: changedBy,
       reason: 'Moved to another accounting date.',
     );
+  }
+
+  /// Atomic financial correction after Entered: receipt + audits + case.
+  Future<ReceiptRecord> applyEnteredFinancialCorrection({
+    required ReceiptRecord updated,
+    required ReconciliationCaseRecord caseRecord,
+    String? changedBy,
+    String? reason,
+  }) async {
+    final db = await _db.database;
+    final existing = await getById(updated.id, includeDeleted: true);
+    if (existing == null) {
+      throw StateError('Receipt ${updated.id} was not found.');
+    }
+    if (existing.deletedAt != null) {
+      throw StateError('Cannot edit a soft-deleted receipt.');
+    }
+    if (existing.entryStatus != DbEntryStatus.entered) {
+      throw StateError('Financial correction case requires an Entered receipt.');
+    }
+
+    final now = DateTime.now().toUtc();
+    final saved = updated.copyWith(
+      updatedAt: now,
+      entryStatus: DbEntryStatus.entered,
+      enteredAt: existing.enteredAt,
+      enteredBy: existing.enteredBy,
+      reviewStatus: DbReviewStatus.needsReconciliation,
+      clearReconciliationCompletedAt: true,
+    );
+    final audits = _buildAudits(
+      existing: existing,
+      updated: saved,
+      changedAt: now,
+      changedBy: changedBy,
+      reason: reason,
+    );
+    final persistedCase = ReconciliationCaseRecord(
+      id: caseRecord.id.isEmpty ? _uuid.v4() : caseRecord.id,
+      receiptId: saved.id,
+      status: ReconciliationCaseStatus.open,
+      kind: caseRecord.kind,
+      reason: caseRecord.reason,
+      correctionNotes: caseRecord.correctionNotes,
+      diffs: List.unmodifiable(caseRecord.diffs),
+      previousAmount: caseRecord.previousAmount,
+      correctedAmount: caseRecord.correctedAmount,
+      openedAt: caseRecord.openedAt,
+      openedBy: caseRecord.openedBy ?? changedBy,
+      createdAt: caseRecord.createdAt,
+    );
+
+    await db.transaction((txn) async {
+      final count = await txn.update(
+        DbSchema.receipts,
+        ReceiptMapper.toMap(saved),
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [saved.id],
+      );
+      if (count != 1) {
+        throw StateError('Receipt ${saved.id} was not updated.');
+      }
+      for (final audit in audits) {
+        await txn.insert(DbSchema.receiptAudit, AuditMapper.toMap(audit));
+      }
+      await txn.insert(
+        DbSchema.reconciliationCases,
+        ReconciliationCaseMapper.toMap(persistedCase),
+      );
+      await txn.insert(
+        DbSchema.receiptAudit,
+        AuditMapper.toMap(
+          ReceiptAuditHistoryRecord(
+            id: _uuid.v4(),
+            receiptId: saved.id,
+            fieldName: 'reconciliation_case',
+            oldValue: null,
+            newValue: persistedCase.id,
+            changedAt: now,
+            changedBy: changedBy,
+            reason: reason,
+          ),
+        ),
+      );
+    });
+
+    return saved;
+  }
+
+  Future<ReceiptRecord> completeReconciliation({
+    required String id,
+    required String completedBy,
+    String? correctionNotes,
+  }) async {
+    final existing = await getById(id);
+    if (existing == null) {
+      throw StateError('Receipt $id was not found.');
+    }
+    if (existing.reviewStatus != DbReviewStatus.needsReconciliation) {
+      throw StateError('Receipt $id has no open reconciliation requirement.');
+    }
+
+    final now = DateTime.now().toUtc();
+    final saved = existing.copyWith(
+      reviewStatus: DbReviewStatus.approved,
+      entryStatus: DbEntryStatus.entered,
+      enteredAt: existing.enteredAt ?? now,
+      enteredBy: existing.enteredBy ?? completedBy,
+      reconciliationCompletedAt: now,
+      updatedAt: now,
+    );
+    final db = await _db.database;
+
+    await db.transaction((txn) async {
+      final count = await txn.update(
+        DbSchema.receipts,
+        ReceiptMapper.toMap(saved),
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [id],
+      );
+      if (count != 1) {
+        throw StateError('Receipt $id was not updated.');
+      }
+
+      final openCases = await txn.query(
+        DbSchema.reconciliationCases,
+        where: 'receipt_id = ? AND status = ?',
+        whereArgs: [id, ReconciliationCaseStatus.open.storageValue],
+      );
+      for (final row in openCases) {
+        final open = ReconciliationCaseMapper.fromMap(row);
+        final closed = open.copyWith(
+          status: ReconciliationCaseStatus.completed,
+          completedAt: now,
+          completedBy: completedBy,
+          correctionNotes: correctionNotes ?? open.correctionNotes,
+        );
+        await txn.update(
+          DbSchema.reconciliationCases,
+          ReconciliationCaseMapper.toMap(closed),
+          where: 'id = ?',
+          whereArgs: [closed.id],
+        );
+      }
+
+      for (final audit in _buildAudits(
+        existing: existing,
+        updated: saved,
+        changedAt: now,
+        changedBy: completedBy,
+        reason: 'WinForms correction completed — status Entered.',
+      )) {
+        await txn.insert(DbSchema.receiptAudit, AuditMapper.toMap(audit));
+      }
+      await txn.insert(
+        DbSchema.receiptAudit,
+        AuditMapper.toMap(
+          ReceiptAuditHistoryRecord(
+            id: _uuid.v4(),
+            receiptId: id,
+            fieldName: 'reconciliation_completed_at',
+            oldValue: existing.reconciliationCompletedAt?.toIso8601String(),
+            newValue: encodeDateTime(now),
+            changedAt: now,
+            changedBy: completedBy,
+            reason: 'Reconciliation completed after manual WinForms correction.',
+          ),
+        ),
+      );
+    });
+
+    return saved;
+  }
+
+  Future<ReceiptRecord> reopenReconciliation({
+    required String id,
+    required String reopenedBy,
+    String? reason,
+  }) async {
+    final existing = await getById(id);
+    if (existing == null) {
+      throw StateError('Receipt $id was not found.');
+    }
+    final now = DateTime.now().toUtc();
+    final saved = existing.copyWith(
+      reviewStatus: DbReviewStatus.needsReconciliation,
+      entryStatus: DbEntryStatus.entered,
+      enteredAt: existing.enteredAt,
+      enteredBy: existing.enteredBy,
+      clearReconciliationCompletedAt: true,
+      updatedAt: now,
+    );
+    final caseRecord = ReconciliationCaseRecord(
+      id: _uuid.v4(),
+      receiptId: id,
+      status: ReconciliationCaseStatus.open,
+      kind: ReconciliationCaseKind.reopen,
+      reason:
+          reason ??
+          'Reconciliation reopened. WinForms may still need review.',
+      diffs: const [],
+      previousAmount: existing.priorAmount ?? existing.amount,
+      correctedAmount: existing.amount,
+      openedAt: now,
+      openedBy: reopenedBy,
+      createdAt: now,
+    );
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      await txn.update(
+        DbSchema.receipts,
+        ReceiptMapper.toMap(saved),
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [id],
+      );
+      await txn.insert(
+        DbSchema.reconciliationCases,
+        ReconciliationCaseMapper.toMap(caseRecord),
+      );
+      await txn.insert(
+        DbSchema.receiptAudit,
+        AuditMapper.toMap(
+          ReceiptAuditHistoryRecord(
+            id: _uuid.v4(),
+            receiptId: id,
+            fieldName: 'review_status',
+            oldValue: existing.reviewStatus.storageValue,
+            newValue: saved.reviewStatus.storageValue,
+            changedAt: now,
+            changedBy: reopenedBy,
+            reason: caseRecord.reason,
+          ),
+        ),
+      );
+    });
+    return saved;
+  }
+
+  Future<ReconciliationCaseRecord> addReconciliationCorrectionNotes({
+    required String caseId,
+    required String notes,
+    required String changedBy,
+  }) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      DbSchema.reconciliationCases,
+      where: 'id = ?',
+      whereArgs: [caseId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      throw StateError('Reconciliation case $caseId was not found.');
+    }
+    final existing = ReconciliationCaseMapper.fromMap(rows.first);
+    final merged = existing.correctionNotes == null ||
+            existing.correctionNotes!.trim().isEmpty
+        ? notes
+        : '${existing.correctionNotes}\n$notes';
+    final updated = existing.copyWith(correctionNotes: merged);
+    final now = DateTime.now().toUtc();
+    await db.transaction((txn) async {
+      await txn.update(
+        DbSchema.reconciliationCases,
+        ReconciliationCaseMapper.toMap(updated),
+        where: 'id = ?',
+        whereArgs: [caseId],
+      );
+      await txn.insert(
+        DbSchema.receiptAudit,
+        AuditMapper.toMap(
+          ReceiptAuditHistoryRecord(
+            id: _uuid.v4(),
+            receiptId: existing.receiptId,
+            fieldName: 'reconciliation_notes',
+            oldValue: existing.correctionNotes,
+            newValue: merged,
+            changedAt: now,
+            changedBy: changedBy,
+            reason: 'Correction notes added to reconciliation case.',
+          ),
+        ),
+      );
+    });
+    return updated;
+  }
+
+  Future<List<ReconciliationCaseRecord>> listReconciliationCases(
+    String receiptId,
+  ) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      DbSchema.reconciliationCases,
+      where: 'receipt_id = ?',
+      whereArgs: [receiptId],
+      orderBy: 'opened_at ASC, created_at ASC',
+    );
+    return rows.map(ReconciliationCaseMapper.fromMap).toList();
+  }
+
+  Future<List<ReconciliationCaseRecord>> listOpenReconciliationCases({
+    DateTime? accountingDate,
+  }) async {
+    final db = await _db.database;
+    if (accountingDate == null) {
+      final rows = await db.query(
+        DbSchema.reconciliationCases,
+        where: 'status = ?',
+        whereArgs: [ReconciliationCaseStatus.open.storageValue],
+        orderBy: 'opened_at DESC',
+      );
+      return rows.map(ReconciliationCaseMapper.fromMap).toList();
+    }
+    final rows = await db.rawQuery(
+      '''
+SELECT c.*
+FROM ${DbSchema.reconciliationCases} c
+INNER JOIN ${DbSchema.receipts} r ON r.id = c.receipt_id
+WHERE c.status = ?
+  AND r.accounting_date = ?
+ORDER BY c.opened_at DESC
+''',
+      [
+        ReconciliationCaseStatus.open.storageValue,
+        encodeDateOnly(accountingDate),
+      ],
+    );
+    return rows.map(ReconciliationCaseMapper.fromMap).toList();
+  }
+
+  Future<({int count, double affectedAmount})> summarizeOpenReconciliation({
+    DateTime? accountingDate,
+  }) async {
+    final cases = await listOpenReconciliationCases(
+      accountingDate: accountingDate,
+    );
+    var amount = 0.0;
+    for (final item in cases) {
+      amount += (item.correctedAmount ?? item.previousAmount ?? 0).abs();
+    }
+    return (count: cases.length, affectedAmount: amount);
+  }
+
+  Future<ReceiptRecord> softDeleteEnteredWithReconciliationCase({
+    required String id,
+    required String changedBy,
+  }) async {
+    final existing = await getById(id);
+    if (existing == null) {
+      throw StateError('Receipt $id was not found.');
+    }
+    if (existing.entryStatus != DbEntryStatus.entered) {
+      return softDelete(id: id, changedBy: changedBy);
+    }
+
+    final now = DateTime.now().toUtc();
+    final saved = existing.copyWith(
+      deletedAt: now,
+      updatedAt: now,
+      reviewStatus: DbReviewStatus.needsReconciliation,
+      entryStatus: DbEntryStatus.entered,
+      enteredAt: existing.enteredAt,
+      enteredBy: existing.enteredBy,
+    );
+    final caseRecord = ReconciliationCaseRecord(
+      id: _uuid.v4(),
+      receiptId: id,
+      status: ReconciliationCaseStatus.open,
+      kind: ReconciliationCaseKind.deletion,
+      reason:
+          'Entered receipt deleted. Corresponding WinForms entry may need '
+          'reversal.',
+      diffs: [
+        FinancialFieldDiff(
+          field: 'deleted_at',
+          label: 'Deleted',
+          oldValue: null,
+          newValue: encodeDateTime(now),
+        ),
+      ],
+      previousAmount: existing.amount,
+      correctedAmount: existing.amount,
+      openedAt: now,
+      openedBy: changedBy,
+      createdAt: now,
+    );
+
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      await txn.update(
+        DbSchema.receipts,
+        ReceiptMapper.toMap(saved),
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await txn.insert(
+        DbSchema.reconciliationCases,
+        ReconciliationCaseMapper.toMap(caseRecord),
+      );
+      await txn.insert(
+        DbSchema.receiptAudit,
+        AuditMapper.toMap(
+          ReceiptAuditHistoryRecord(
+            id: _uuid.v4(),
+            receiptId: id,
+            fieldName: 'deleted_at',
+            oldValue: null,
+            newValue: encodeDateTime(now),
+            changedAt: now,
+            changedBy: changedBy,
+            reason: caseRecord.reason,
+          ),
+        ),
+      );
+    });
+    return saved;
   }
 
   /// Efficient filtered list. Does not load image bytes — only path metadata.
@@ -380,6 +801,7 @@ class ReceiptRepository {
         'prior_amount',
         'prior_party_name',
         'prior_account_id',
+        'reconciliation_completed_at',
         'notes',
         'created_at',
         'updated_at',
@@ -552,7 +974,17 @@ GROUP BY accounting_date
       return existing;
     }
     final now = DateTime.now().toUtc();
-    final saved = existing.copyWith(clearDeletedAt: true, updatedAt: now);
+    // Never silently clear reconciliation when restoring an Entered receipt.
+    final saved = existing.copyWith(
+      clearDeletedAt: true,
+      updatedAt: now,
+      reviewStatus: existing.entryStatus == DbEntryStatus.entered
+          ? DbReviewStatus.needsReconciliation
+          : existing.reviewStatus,
+      entryStatus: existing.entryStatus,
+      enteredAt: existing.enteredAt,
+      enteredBy: existing.enteredBy,
+    );
     final db = await _db.database;
     await db.transaction((txn) async {
       await txn.update(
@@ -572,7 +1004,10 @@ GROUP BY accounting_date
             newValue: null,
             changedAt: now,
             changedBy: changedBy,
-            reason: reason ?? 'Restored from soft delete',
+            reason: reason ??
+                (existing.entryStatus == DbEntryStatus.entered
+                    ? 'Restored Entered receipt; reconciliation still required.'
+                    : 'Restored from soft delete'),
           ),
         ),
       );
@@ -595,6 +1030,11 @@ GROUP BY accounting_date
     }
     final db = await _db.database;
     await db.transaction((txn) async {
+      await txn.delete(
+        DbSchema.reconciliationCases,
+        where: 'receipt_id = ?',
+        whereArgs: [id],
+      );
       await txn.delete(
         DbSchema.receiptAudit,
         where: 'receipt_id = ?',
@@ -734,6 +1174,11 @@ GROUP BY accounting_date
     }
 
     track('amount', existing.amount, updated.amount);
+    track(
+      'receipt_type',
+      existing.receiptType.storageValue,
+      updated.receiptType.storageValue,
+    );
     track('mapped_party_id', existing.mappedPartyId, updated.mappedPartyId);
     track('customer_id', existing.customerId, updated.customerId);
     track('dealer_id', existing.dealerId, updated.dealerId);
@@ -741,6 +1186,11 @@ GROUP BY accounting_date
       'mapped_account_id',
       existing.mappedAccountId,
       updated.mappedAccountId,
+    );
+    track(
+      'transaction_id',
+      existing.transactionId,
+      updated.transactionId,
     );
     track(
       'accounting_date',
@@ -776,6 +1226,15 @@ GROUP BY accounting_date
     track('entered_at', existing.enteredAt, updated.enteredAt);
     track('entered_by', existing.enteredBy, updated.enteredBy);
     track('prior_amount', existing.priorAmount, updated.priorAmount);
+    track(
+      'reconciliation_completed_at',
+      existing.reconciliationCompletedAt == null
+          ? null
+          : encodeDateTime(existing.reconciliationCompletedAt!),
+      updated.reconciliationCompletedAt == null
+          ? null
+          : encodeDateTime(updated.reconciliationCompletedAt!),
+    );
 
     return audits;
   }

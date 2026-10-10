@@ -37,8 +37,8 @@ void main() {
     );
   }
 
-  test('schema v5 columns exist', () async {
-    expect(DbSchema.version, 5);
+  test('schema v6 desk columns exist', () async {
+    expect(DbSchema.version, 6);
     final db = await harness.database.database;
     final info = await db.rawQuery('PRAGMA table_info(${DbSchema.receipts})');
     final names = info.map((r) => r['name']).toSet();
@@ -175,6 +175,7 @@ void main() {
       id: row.id,
       newAmount: 9999,
       changedBy: 'clerk',
+      userConfirmedReconciliation: true,
     );
     expect(updated.entryStatus, DbEntryStatus.entered);
     expect(updated.enteredAt, isNotNull);
@@ -240,7 +241,7 @@ void main() {
       await receipts.countByAccountingDate(DateTime(2026, 10, 10)),
       before,
     );
-    expect(DbSchema.version, 5);
+    expect(DbSchema.version, 6);
   });
 
   test('move accounting date for late historical assignment', () async {

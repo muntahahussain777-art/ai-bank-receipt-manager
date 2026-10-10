@@ -247,8 +247,26 @@ final storedReceiptCountsByMonthProvider =
       return repo.countByAccountingDateRange(from: from, to: to);
     });
 
+final openReconciliationCasesProvider =
+    FutureProvider.autoDispose<List<ReconciliationCaseRecord>>((ref) async {
+      final service = await ref.watch(receiptEntryServiceProvider.future);
+      final date = ref.watch(selectedAccountingDateProvider);
+      return service.listOpenCases(accountingDate: date);
+    });
+
+final openReconciliationSummaryProvider =
+    FutureProvider.autoDispose<({int count, double affectedAmount})>((
+      ref,
+    ) async {
+      final repo = await ref.watch(receiptRepositoryProvider.future);
+      final date = ref.watch(selectedAccountingDateProvider);
+      return repo.summarizeOpenReconciliation(accountingDate: date);
+    });
+
 void invalidateDeskProviders(WidgetRef ref) {
   ref.invalidate(storedReceiptsForSelectedDateProvider);
   ref.invalidate(dailyDeskSummaryProvider);
   ref.invalidate(storedReceiptCountsByMonthProvider);
+  ref.invalidate(openReconciliationCasesProvider);
+  ref.invalidate(openReconciliationSummaryProvider);
 }

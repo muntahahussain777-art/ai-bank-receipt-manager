@@ -14,6 +14,7 @@ abstract final class DatabaseMigrations {
       await _migrateToV3(txn);
       await _migrateToV4(txn);
       await _migrateToV5(txn);
+      await _migrateToV6(txn);
     });
   }
 
@@ -35,6 +36,9 @@ abstract final class DatabaseMigrations {
       }
       if (oldVersion < 5) {
         await _migrateToV5(txn);
+      }
+      if (oldVersion < 6) {
+        await _migrateToV6(txn);
       }
     });
   }
@@ -647,6 +651,48 @@ WHERE file_count = 0 AND receipt_count > 0
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_receipts_review_status '
       'ON ${DbSchema.receipts}(review_status)',
+    );
+  }
+
+  static Future<void> _migrateToV6(DatabaseExecutor db) async {
+    await _addColumnIfMissing(
+      db,
+      DbSchema.receipts,
+      'reconciliation_completed_at',
+      'TEXT',
+    );
+
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS ${DbSchema.reconciliationCases} (
+  id TEXT PRIMARY KEY NOT NULL,
+  receipt_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  correction_notes TEXT,
+  diffs_json TEXT NOT NULL,
+  previous_amount REAL,
+  corrected_amount REAL,
+  opened_at TEXT NOT NULL,
+  opened_by TEXT,
+  completed_at TEXT,
+  completed_by TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY(receipt_id) REFERENCES ${DbSchema.receipts}(id)
+)
+''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recon_cases_receipt '
+      'ON ${DbSchema.reconciliationCases}(receipt_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recon_cases_status '
+      'ON ${DbSchema.reconciliationCases}(status)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recon_cases_opened '
+      'ON ${DbSchema.reconciliationCases}(opened_at)',
     );
   }
 

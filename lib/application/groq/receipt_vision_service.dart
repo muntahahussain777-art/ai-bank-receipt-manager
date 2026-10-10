@@ -163,9 +163,24 @@ class ReceiptVisionService {
     }
 
     if (result.isSuccess) {
+      // Never overwrite Entered financial fields or reset reconciliation status.
       await _receipts.updateReceipt(
         updated: receipt.copyWith(
-          reviewStatus: DbReviewStatus.pendingReview,
+          entryStatus: receipt.entryStatus,
+          enteredAt: receipt.enteredAt,
+          enteredBy: receipt.enteredBy,
+          amount: receipt.amount,
+          accountingDate: receipt.accountingDate,
+          receiptType: receipt.receiptType,
+          mappedAccountId: receipt.mappedAccountId,
+          customerId: receipt.customerId,
+          dealerId: receipt.dealerId,
+          transactionId: receipt.transactionId,
+          reviewStatus: receipt.reviewStatus,
+          priorAmount: receipt.priorAmount,
+          priorPartyName: receipt.priorPartyName,
+          priorAccountId: receipt.priorAccountId,
+          reconciliationCompletedAt: receipt.reconciliationCompletedAt,
           notes: _appendNote(
             receipt.notes,
             'AI reprocess proposed changes for review (extraction ${result.extractionRecord.id}).',
